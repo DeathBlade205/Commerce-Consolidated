@@ -3,9 +3,15 @@ import { ref, onMounted, onBeforeUnmount } from 'vue'
 
 const canvasRef = ref(null)
 
-const PARTICLES = 64
-const MAX_LINK_DIST = 0.14 // normalized 0..1
-const WAVES = 4
+// Density is set per device class — phones/tablets get a lighter scene to keep
+// the per-frame `for i*j` connection pass and canvas raster cost manageable.
+function pickDensity() {
+  if (typeof window === 'undefined') return { particles: 64, waves: 4, maxLink: 0.14 }
+  const small = window.matchMedia('(max-width: 880px)').matches
+  const touch = 'ontouchstart' in window || (navigator.maxTouchPoints ?? 0) > 0
+  if (small || touch) return { particles: 28, waves: 2, maxLink: 0.18 }
+  return { particles: 64, waves: 4, maxLink: 0.14 }
+}
 
 let rafId = 0
 let cleanup = null
@@ -18,6 +24,7 @@ onMounted(() => {
   if (!ctx) return
 
   const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+  const { particles: PARTICLES, waves: WAVES, maxLink: MAX_LINK_DIST } = pickDensity()
 
   let w = 0
   let h = 0

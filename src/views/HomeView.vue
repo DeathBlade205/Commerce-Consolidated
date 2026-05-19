@@ -11,8 +11,14 @@ import BackgroundField from '../components/BackgroundField.vue'
 // animation leaves the element stuck at opacity 0.
 const entered = ref(false)
 const logoFlourish = ref(false)
+const logoBreath = ref(false)
 let sweepRaf = 0
 let sweepCancelled = false
+
+const isTouch =
+  typeof window !== 'undefined' &&
+  ('ontouchstart' in window ||
+    (typeof navigator !== 'undefined' && (navigator.maxTouchPoints ?? 0) > 0))
 
 function dispatchMove(x, y) {
   const ev = new MouseEvent('mousemove', {
@@ -27,7 +33,10 @@ function dispatchMove(x, y) {
 
 // Auto-flashlight intro: trace a path across title -> logo -> mission so the page
 // reveals itself once before handing control back to the real cursor.
+// Skipped on touch devices (no hover semantics — the sweep just flickers content
+// that's already fully visible via FlashlightReveal's touch fallback).
 function runIntroSweep() {
+  if (isTouch) return
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) return
 
   const w = window.innerWidth
@@ -43,8 +52,10 @@ function runIntroSweep() {
   let segIdx = 0
   let segStart = performance.now()
   let prev = waypoints[0]
-  // Trigger the logo flourish slightly before the sweep arrives there
+  // Trigger the logo flourish slightly before the sweep arrives there.
+  // Once the flourish finishes (~1.4s), switch the logo into its ongoing breath.
   setTimeout(() => { logoFlourish.value = true }, segMs * 1.6)
+  setTimeout(() => { logoBreath.value = true }, segMs * 1.6 + 1400)
 
   function easeInOutCubic(t) {
     return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2
@@ -82,12 +93,20 @@ function cancelSweepOnUserMove(e) {
 }
 
 onMounted(() => {
-  window.addEventListener('mousemove', cancelSweepOnUserMove, { capture: true })
+  if (!isTouch) {
+    window.addEventListener('mousemove', cancelSweepOnUserMove, { capture: true })
+  }
   // Flip `entered` on next paint so the CSS transitions kick in
   requestAnimationFrame(() => {
     requestAnimationFrame(() => { entered.value = true })
   })
-  setTimeout(runIntroSweep, 500)
+  if (isTouch) {
+    // No flourish path on touch — drop the logo straight into ambient breath
+    // after the cascade entry settles.
+    setTimeout(() => { logoBreath.value = true }, 1600)
+  } else {
+    setTimeout(runIntroSweep, 500)
+  }
 })
 
 onBeforeUnmount(() => {
@@ -118,7 +137,10 @@ onBeforeUnmount(() => {
       </h1>
 
       <!-- Step 2: logo (stepped right & down, fully hidden until flashlight reveal) -->
-      <div class="logo enter enter--3" :class="{ 'logo--flourish': logoFlourish }">
+      <div
+        class="logo enter enter--3"
+        :class="{ 'logo--flourish': logoFlourish, 'logo--breath': logoBreath }"
+      >
         <FlashlightReveal hidden :radius="180">
           <LogoMark :size="160" />
         </FlashlightReveal>
@@ -266,6 +288,24 @@ onBeforeUnmount(() => {
   100% { transform: scale(1) rotate(0); }
 }
 
+/* Continuous breath after the flourish settles — keeps the logo alive without
+   competing with the title/mission. ~7s cycle, very subtle range. */
+.logo--breath {
+  animation: breath 7s ease-in-out infinite;
+}
+
+@keyframes breath {
+  0%, 100% { transform: scale(1) rotate(0deg); }
+  50%      { transform: scale(1.022) rotate(0.6deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .logo--flourish,
+  .logo--breath {
+    animation: none;
+  }
+}
+
 .mission {
   grid-column: 2 / span 2;
   grid-row: 3;
@@ -316,13 +356,21 @@ onBeforeUnmount(() => {
 
 @media (max-width: 880px) {
   .home {
-    padding: 120px 24px 60px;
-    gap: 56px;
+    padding: 110px 22px 140px; /* extra bottom for the stacked meta strip */
+    gap: 44px;
+  }
+
+  .eyebrow {
+    gap: 14px;
+  }
+
+  .line {
+    width: 28px;
   }
 
   .stage {
     grid-template-columns: 1fr;
-    row-gap: 40px;
+    row-gap: 32px;
   }
 
   .title,
@@ -335,16 +383,27 @@ onBeforeUnmount(() => {
   }
 
   .title-text {
-    font-size: clamp(34px, 11vw, 64px);
+    /* Slightly larger floor so it still reads as a display headline on small screens. */
+    font-size: clamp(36px, 12vw, 56px);
+    line-height: 1.04;
+  }
+
+  .mission-text {
+    font-size: 13px;
+    line-height: 1.7;
+  }
+
+  .logo {
+    padding-top: 8px;
   }
 
   .meta-strip {
-    left: 24px;
-    right: 24px;
-    bottom: 32px;
+    left: 22px;
+    right: 22px;
+    bottom: 28px;
     flex-direction: column;
     align-items: flex-start;
-    gap: 12px;
+    gap: 10px;
   }
 }
 </style>
