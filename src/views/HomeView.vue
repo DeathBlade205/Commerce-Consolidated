@@ -2,7 +2,6 @@
 import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import FlashlightReveal from '../components/FlashlightReveal.vue'
 import LogoMark from '../components/LogoMark.vue'
-import BackgroundField from '../components/BackgroundField.vue'
 
 // `entered` flips from false → true on the next animation frame after mount.
 // Elements have their final visible state by default; while `entered` is false
@@ -118,21 +117,20 @@ onBeforeUnmount(() => {
 
 <template>
   <main class="home" :class="{ 'is-pre-enter': !entered }">
-    <BackgroundField />
-
     <div class="eyebrow enter enter--1">
       <span class="line" />
       <span class="label eyebrow-text">Digital Practice · Sydney · Est. 2026</span>
+      <span class="line" />
     </div>
 
     <div class="stage">
-      <!-- Left column: title stack (staggered lines) + mission indented underneath -->
+      <!-- Title (centred) above an indented mission that staggers off to the side. -->
       <div class="hero-stack">
         <h1 class="title enter enter--2">
           <FlashlightReveal :radius="240">
             <span class="title-text">
-              <span class="title-line title-line--1">Commerce</span>
-              <span class="title-line title-line--2">Consolidated</span>
+              <span class="title-line">Commerce</span>
+              <span class="title-line">Consolidated</span>
             </span>
           </FlashlightReveal>
         </h1>
@@ -147,7 +145,11 @@ onBeforeUnmount(() => {
         </div>
       </div>
 
-      <!-- Right column: logo, fully hidden until flashlight reveal -->
+    </div>
+
+    <!-- Logo positioned absolutely so it doesn't pull the centred hero off-axis.
+         Hidden behind FlashlightReveal until the cursor passes. -->
+    <div class="logo-positioner">
       <div
         class="logo enter enter--3"
         :class="{ 'logo--flourish': logoFlourish, 'logo--breath': logoBreath }"
@@ -172,10 +174,12 @@ onBeforeUnmount(() => {
 .home {
   min-height: 100vh;
   position: relative;
-  padding: 140px 64px 100px;
+  padding: 140px 64px 140px;
   display: flex;
   flex-direction: column;
-  gap: 80px;
+  align-items: center;     /* horizontally centre eyebrow + stage */
+  justify-content: center; /* vertically centre the hero composition */
+  gap: 72px;
   isolation: isolate;
   overflow: hidden;
 }
@@ -232,38 +236,38 @@ onBeforeUnmount(() => {
   flex-shrink: 0;
 }
 
-/* Two-column stage: left = title + mission (staggered, indented), right = logo. */
+/* Centred hero: the hero-stack sits in the middle of the page horizontally;
+   the logo is absolutely positioned to one side so it doesn't push the
+   composition off-centre. */
 .stage {
-  display: grid;
-  grid-template-columns: minmax(0, 1.6fr) minmax(0, 0.5fr);
-  column-gap: 48px;
-  align-items: start;
   position: relative;
   z-index: 1;
+  width: 100%;
+  display: flex;
+  justify-content: center;
 }
 
 .hero-stack {
-  grid-column: 1;
   display: flex;
   flex-direction: column;
-  gap: 36px;
-  /* Shared stagger step. Both title line 2 and the mission use multiples of
-     this so the staircase reads consistently regardless of each element's own
-     font-size (em-based indents would shrink with the smaller mission font). */
-  --stagger: clamp(60px, 8.5vw, 130px);
+  align-items: center;
+  gap: 56px;
+  /* Stagger drives how far the mission slides right of the centred title. */
+  --stagger: clamp(80px, 13vw, 200px);
 }
 
 .title {
   margin: 0;
   font-weight: 400;
+  text-align: center;       /* both title lines centre on the same axis */
 }
 
 .title-text {
   display: block;
   font-family: var(--font-mono);
-  font-size: clamp(32px, 5.4vw, 76px);
-  line-height: 1.02;
-  letter-spacing: -0.04em;
+  font-size: clamp(34px, 5.2vw, 76px);
+  line-height: 1.06;
+  letter-spacing: -0.02em;  /* less tight than before — lets the mono breathe */
   text-transform: uppercase;
   font-weight: 500;
 }
@@ -272,23 +276,27 @@ onBeforeUnmount(() => {
   display: block;
 }
 
-/* Stagger: line 2 indented one step. Line 1 stays at the container origin. */
-.title-line--2 {
-  padding-left: var(--stagger);
+/* Positioner: parks the logo on the right side of the page, vertically
+   centred. Kept separate from the .logo node so the entry/flourish/breath
+   animations on `.logo` can freely set `transform` without losing position. */
+.logo-positioner {
+  position: absolute;
+  right: 8vw;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 1;
+  pointer-events: none;
 }
 
 .logo {
-  grid-column: 2;
-  align-self: end;
-  justify-self: start;
-  padding-top: 24px;
   color: var(--grey-100);
   transform-origin: center;
   will-change: transform, filter;
 }
 
 /* Flourish: scale up + rotate slightly, then settle. Class is added when the
-   intro sweep reaches the logo. */
+   intro sweep reaches the logo. Positioning lives on `.logo-positioner`, so
+   these transforms only need to handle the animation itself. */
 .logo--flourish {
   animation: flourish 1400ms cubic-bezier(0.22, 1, 0.36, 1);
 }
@@ -320,17 +328,20 @@ onBeforeUnmount(() => {
 
 .mission {
   margin: 0;
-  /* Two steps in — title line 1 (0), title line 2 (1 step), mission (2 steps). */
-  padding-left: calc(var(--stagger) * 2);
+  /* Mission steps off to the right of the centred title — one stagger step.
+     `align-self: end` lifts the indent off the centred parent so the mission
+     can sit to the right of the centre axis instead of inheriting centring. */
+  align-self: center;
+  padding-left: var(--stagger);
+  max-width: 520px;
 }
 
 .mission-text {
   display: block;
   font-family: var(--font-mono);
-  font-size: clamp(12px, 0.9vw, 14px); /* slightly smaller than before */
+  font-size: clamp(13px, 0.95vw, 14px);
   line-height: 1.75;
   letter-spacing: 0.01em;
-  max-width: 520px;
   font-weight: 400;
 }
 
@@ -386,21 +397,17 @@ onBeforeUnmount(() => {
     width: 28px;
   }
 
-  .stage {
-    grid-template-columns: 1fr;
-    row-gap: 28px;
-  }
-
   .hero-stack {
-    grid-column: 1;
-    gap: 24px;
+    gap: 28px;
   }
 
-  .logo {
-    grid-column: 1;
-    grid-row: auto;
-    padding-top: 4px;
-    justify-self: start;
+  .logo-positioner {
+    /* Drop the absolute side-positioning on mobile — let the logo flow inline
+       under the mission for the stacked column layout. */
+    position: static;
+    transform: none;
+    margin-top: 8px;
+    align-self: start;
   }
 
   .title-text {
@@ -411,7 +418,13 @@ onBeforeUnmount(() => {
 
   .hero-stack {
     /* Tighter stagger on mobile so mission isn't pushed off-screen. */
-    --stagger: clamp(20px, 7vw, 36px);
+    --stagger: clamp(20px, 6vw, 36px);
+    gap: 32px;
+  }
+
+  .mission {
+    align-self: stretch; /* let the wrap fill on mobile rather than stay pinned right */
+    padding-left: var(--stagger);
   }
 
   .mission-text {

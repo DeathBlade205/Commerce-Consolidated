@@ -27,7 +27,7 @@ src/
     NavBar.vue             # Fixed top nav, mix-blend-mode: difference
     FlashlightReveal.vue   # Slot-based mouse-tracked radial mask reveal. `hidden` prop omits dim base layer (content only visible inside flashlight). On touch devices, renders content fully visible with no mask.
     LogoMark.vue           # SVG "CC" monogram in outlined square — used inside hidden FlashlightReveal on Home
-    BackgroundField.vue    # Canvas 2D abstract-geometry layer for Home: drifting particle constellation + connecting lines + horizontal sine waves + static geometric anchor marks. Sits behind .stage at z-index 0. Respects prefers-reduced-motion.
+    BackgroundField.vue    # Canvas 2D background layer. **No longer used on Home** (removed in favour of the minimal Swiss/typographic aesthetic — just grain + corner brackets). File kept for reference / possible future use on other views.
     CustomCursor.vue       # 6px dot cursor, expands to 32px on links/buttons
     GrainOverlay.vue       # SVG fractalNoise grain, fixed, mix-blend-mode: overlay, z-index 1
     CornerMarks.vue        # Four fixed SVG corner brackets, z-index 200
@@ -74,15 +74,17 @@ src/
 ## Views
 
 ### HomeView (`/`)
-Two-column hero with a typographic staircase. Uses `--font-mono` (Geist Mono) throughout.
+Minimal centred hero. No background canvas — just the global grain overlay + corner marks. The `.home` is `display: flex` with `align-items: center` and `justify-content: center` so the composition sits in the middle of the viewport.
 
-**Left column — `.hero-stack`:** title + mission stacked vertically with a shared CSS variable `--stagger: clamp(60px, 8.5vw, 130px)` driving the indents.
-- **Title** — `COMMERCE` (line 1, no indent) and `CONSOLIDATED` (line 2, `padding-left: var(--stagger)`). Mono uppercase, weight 500, large clamp. Wrapped in `FlashlightReveal` (dim at `--grey-500`, bright reveal to `--grey-100`).
-- **Mission statement** — beneath the title, `padding-left: calc(var(--stagger) * 2)` (two steps in). Smaller mono body. Wrapped in `FlashlightReveal`, but a `:deep(.layer.dim)` override lifts its dim color to `--grey-300` so it reads as more present than the title's dim baseline.
+**`.eyebrow`** — centred at the top with leading + trailing dash brackets.
 
-**Right column — `.logo`:** `LogoMark` inside `FlashlightReveal hidden` — fully invisible until the flashlight passes over it. Has a one-shot `logo--flourish` animation on intro and a continuous `logo--breath` after that.
+**`.hero-stack`** — title + mission stacked vertically, container `align-items: center`.
+- **Title** — `COMMERCE` over `CONSOLIDATED`, both lines `text-align: center` so they share a vertical axis. Mono uppercase, weight 500, `letter-spacing: -0.02em`, `line-height: 1.06`. Wrapped in `FlashlightReveal` (dim at `--grey-500`, bright reveal to `--grey-100`).
+- **Mission** — staggered to the right of the centred title block by one `--stagger` step (`clamp(80px, 13vw, 200px)`). Smaller mono body with `max-width: 520px`. Wrapped in `FlashlightReveal`, with `:deep(.layer.dim)` lifting dim to `--grey-300`.
 
-Also on page: eyebrow strip (`Digital Practice · Sydney · Est. 2026`) at the top, meta strip at the bottom. Under 880px the columns collapse to a single column and `--stagger` shrinks to `clamp(20px, 7vw, 36px)` so the staircase still reads on a phone without pushing content off-screen. Touch devices skip both the flashlight intro sweep and the dim/bright reveal (content renders at the bright color by default).
+**`.logo-positioner` + `.logo`** — logo is absolutely positioned (`right: 8vw; top: 50%; translateY(-50%)`) so it doesn't pull the centred hero off-axis. The `LogoMark` is wrapped in `FlashlightReveal hidden` — fully invisible until the flashlight passes over it. One-shot `logo--flourish` on intro, continuous `logo--breath` after.
+
+Under 880px: `.logo-positioner` drops back into flow under the mission (`position: static`), `--stagger` shrinks to `clamp(20px, 6vw, 36px)`, mission `align-self: stretch` so it wraps naturally instead of pinning right. Touch devices skip both the flashlight intro sweep and the dim/bright reveal (content renders at the bright color by default).
 
 ### AboutView (`/about`) — nav label: "Practice"
 Six sections in order:
