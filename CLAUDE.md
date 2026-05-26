@@ -74,12 +74,15 @@ src/
 ## Views
 
 ### HomeView (`/`)
-Stepped staircase layout (top-left → middle-right → bottom-centre). Uses `--font-mono` (Geist Mono) for the squared/geometric feel. Three stepped elements:
-1. **Title** — top-left, uppercase mono, `COMMERCE, / CONSOLIDATED.` stacked. Wrapped in `FlashlightReveal` (dim base + bright reveal).
-2. **Logo** — stepped right & down, `LogoMark` inside `FlashlightReveal hidden` so it is fully invisible until the flashlight passes over it.
-3. **Mission statement** — stepped further right & down, mono body copy. Wrapped in `FlashlightReveal`.
+Two-column hero with a typographic staircase. Uses `--font-mono` (Geist Mono) throughout.
 
-Also on page: eyebrow strip (`Digital Practice · Sydney · Est. 2026`) at the top, meta strip at the bottom ("Currently taking briefs for Q3" with pulsing dot + coordinates). Layout collapses to a single stacked column under 880px.
+**Left column — `.hero-stack`:** title + mission stacked vertically with a shared CSS variable `--stagger: clamp(60px, 8.5vw, 130px)` driving the indents.
+- **Title** — `COMMERCE` (line 1, no indent) and `CONSOLIDATED` (line 2, `padding-left: var(--stagger)`). Mono uppercase, weight 500, large clamp. Wrapped in `FlashlightReveal` (dim at `--grey-500`, bright reveal to `--grey-100`).
+- **Mission statement** — beneath the title, `padding-left: calc(var(--stagger) * 2)` (two steps in). Smaller mono body. Wrapped in `FlashlightReveal`, but a `:deep(.layer.dim)` override lifts its dim color to `--grey-300` so it reads as more present than the title's dim baseline.
+
+**Right column — `.logo`:** `LogoMark` inside `FlashlightReveal hidden` — fully invisible until the flashlight passes over it. Has a one-shot `logo--flourish` animation on intro and a continuous `logo--breath` after that.
+
+Also on page: eyebrow strip (`Digital Practice · Sydney · Est. 2026`) at the top, meta strip at the bottom. Under 880px the columns collapse to a single column and `--stagger` shrinks to `clamp(20px, 7vw, 36px)` so the staircase still reads on a phone without pushing content off-screen. Touch devices skip both the flashlight intro sweep and the dim/bright reveal (content renders at the bright color by default).
 
 ### AboutView (`/about`) — nav label: "Practice"
 Six sections in order:

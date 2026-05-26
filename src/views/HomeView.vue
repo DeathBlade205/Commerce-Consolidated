@@ -126,33 +126,34 @@ onBeforeUnmount(() => {
     </div>
 
     <div class="stage">
-      <!-- Step 1: title (top-left, smaller squared mono) -->
-      <h1 class="title enter enter--2">
-        <FlashlightReveal :radius="240">
-          <span class="title-text">
-            <span class="title-line">Commerce,</span>
-            <span class="title-line">Consolidated.</span>
-          </span>
-        </FlashlightReveal>
-      </h1>
+      <!-- Left column: title stack (staggered lines) + mission indented underneath -->
+      <div class="hero-stack">
+        <h1 class="title enter enter--2">
+          <FlashlightReveal :radius="240">
+            <span class="title-text">
+              <span class="title-line title-line--1">Commerce</span>
+              <span class="title-line title-line--2">Consolidated</span>
+            </span>
+          </FlashlightReveal>
+        </h1>
 
-      <!-- Step 2: logo (stepped right & down, fully hidden until flashlight reveal) -->
+        <div class="mission enter enter--4">
+          <FlashlightReveal :radius="260">
+            <span class="mission-text">
+              A digital agency for brands that would rather be understood than seen.
+              Web, identity, and marketing — built quietly, finished well.
+            </span>
+          </FlashlightReveal>
+        </div>
+      </div>
+
+      <!-- Right column: logo, fully hidden until flashlight reveal -->
       <div
         class="logo enter enter--3"
         :class="{ 'logo--flourish': logoFlourish, 'logo--breath': logoBreath }"
       >
         <FlashlightReveal hidden :radius="180">
           <LogoMark :size="160" />
-        </FlashlightReveal>
-      </div>
-
-      <!-- Step 3: mission statement (stepped further right & down) -->
-      <div class="mission enter enter--4">
-        <FlashlightReveal :radius="260">
-          <span class="mission-text">
-            A digital agency for brands that would rather be understood than seen.
-            Web, identity, and marketing — built quietly, finished well.
-          </span>
         </FlashlightReveal>
       </div>
     </div>
@@ -231,21 +232,28 @@ onBeforeUnmount(() => {
   flex-shrink: 0;
 }
 
-/* Stepped staircase: title top-left, logo middle-right, mission bottom-centre-right. */
+/* Two-column stage: left = title + mission (staggered, indented), right = logo. */
 .stage {
   display: grid;
-  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.4fr) minmax(0, 1fr);
-  grid-template-rows: auto auto auto;
-  row-gap: 56px;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 0.5fr);
   column-gap: 48px;
   align-items: start;
   position: relative;
   z-index: 1;
 }
 
+.hero-stack {
+  grid-column: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 36px;
+  /* Shared stagger step. Both title line 2 and the mission use multiples of
+     this so the staircase reads consistently regardless of each element's own
+     font-size (em-based indents would shrink with the smaller mission font). */
+  --stagger: clamp(60px, 8.5vw, 130px);
+}
+
 .title {
-  grid-column: 1 / span 2;
-  grid-row: 1;
   margin: 0;
   font-weight: 400;
 }
@@ -264,9 +272,13 @@ onBeforeUnmount(() => {
   display: block;
 }
 
+/* Stagger: line 2 indented one step. Line 1 stays at the container origin. */
+.title-line--2 {
+  padding-left: var(--stagger);
+}
+
 .logo {
-  grid-column: 3;
-  grid-row: 1 / span 2;
+  grid-column: 2;
   align-self: end;
   justify-self: start;
   padding-top: 24px;
@@ -307,20 +319,26 @@ onBeforeUnmount(() => {
 }
 
 .mission {
-  grid-column: 2 / span 2;
-  grid-row: 3;
   margin: 0;
-  padding-left: 4%;
+  /* Two steps in — title line 1 (0), title line 2 (1 step), mission (2 steps). */
+  padding-left: calc(var(--stagger) * 2);
 }
 
 .mission-text {
   display: block;
   font-family: var(--font-mono);
-  font-size: clamp(13px, 1.05vw, 15px);
+  font-size: clamp(12px, 0.9vw, 14px); /* slightly smaller than before */
   line-height: 1.75;
   letter-spacing: 0.01em;
-  max-width: 560px;
+  max-width: 520px;
   font-weight: 400;
+}
+
+/* Mission's dim layer renders one step brighter than the title (which uses
+   FlashlightReveal's default --grey-500). `:deep()` reaches into the slotted
+   FlashlightReveal layers. The bright reveal still lifts to --grey-100. */
+.mission :deep(.layer.dim) {
+  color: var(--grey-300);
 }
 
 .meta-strip {
@@ -370,15 +388,18 @@ onBeforeUnmount(() => {
 
   .stage {
     grid-template-columns: 1fr;
-    row-gap: 32px;
+    row-gap: 28px;
   }
 
-  .title,
-  .logo,
-  .mission {
+  .hero-stack {
+    grid-column: 1;
+    gap: 24px;
+  }
+
+  .logo {
     grid-column: 1;
     grid-row: auto;
-    padding-left: 0;
+    padding-top: 4px;
     justify-self: start;
   }
 
@@ -388,13 +409,14 @@ onBeforeUnmount(() => {
     line-height: 1.04;
   }
 
+  .hero-stack {
+    /* Tighter stagger on mobile so mission isn't pushed off-screen. */
+    --stagger: clamp(20px, 7vw, 36px);
+  }
+
   .mission-text {
     font-size: 13px;
     line-height: 1.7;
-  }
-
-  .logo {
-    padding-top: 8px;
   }
 
   .meta-strip {
