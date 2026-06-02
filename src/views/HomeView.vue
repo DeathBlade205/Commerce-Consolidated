@@ -1,5 +1,6 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { RouterLink } from 'vue-router'
 import FlashlightReveal from '../components/FlashlightReveal.vue'
 import LogoMark from '../components/LogoMark.vue'
 
@@ -41,10 +42,10 @@ function runIntroSweep() {
   const w = window.innerWidth
   const h = window.innerHeight
   const waypoints = [
-    { x: w * 0.12, y: h * 0.36, hold: 0 },    // title start
-    { x: w * 0.42, y: h * 0.40, hold: 0 },    // mid title
-    { x: w * 0.78, y: h * 0.46, hold: 220 },  // logo (linger)
-    { x: w * 0.52, y: h * 0.78, hold: 120 },  // mission
+    { x: w * 0.30, y: h * 0.40, hold: 0 },    // title start
+    { x: w * 0.60, y: h * 0.46, hold: 0 },    // mid title
+    { x: w * 0.78, y: h * 0.50, hold: 240 },  // logo (linger)
+    { x: w * 0.50, y: h * 0.58, hold: 120 },  // hint
     { x: -9999, y: -9999, hold: 0 },          // off-screen, release
   ]
   const segMs = 620
@@ -118,25 +119,31 @@ onBeforeUnmount(() => {
 <template>
   <main class="home" :class="{ 'is-pre-enter': !entered }">
     <div class="eyebrow enter enter--1">
-      <span class="line" />
-      <span class="label eyebrow-text">Digital Practice · Sydney · Est. 2026</span>
-      <span class="line" />
+      <FlashlightReveal :radius="220">
+        <span class="eyebrow-inner">
+          <span class="line" />
+          <span class="label eyebrow-text">Digital Practice · Sydney · Est. 2026</span>
+          <span class="line" />
+        </span>
+      </FlashlightReveal>
     </div>
 
     <div class="stage">
-      <!-- Title (centred) above an indented mission that staggers off to the side. -->
       <div class="hero-stack">
         <h1 class="title enter enter--2">
-          <FlashlightReveal :radius="240">
-            <span class="title-text">
-              <span class="title-line">Commerce</span>
-              <span class="title-line">Consolidated</span>
-            </span>
+          <FlashlightReveal :radius="280">
+            <span class="title-text">Commerce Consolidated</span>
           </FlashlightReveal>
         </h1>
 
+        <div class="hint enter enter--3">
+          <FlashlightReveal :radius="220">
+            <span class="hint-text">use cursor to look around</span>
+          </FlashlightReveal>
+        </div>
+
         <div class="mission enter enter--4">
-          <FlashlightReveal :radius="260">
+          <FlashlightReveal :radius="240">
             <span class="mission-text">
               A digital agency for brands that would rather be understood than seen.
               Web, identity, and marketing — built quietly, finished well.
@@ -144,7 +151,6 @@ onBeforeUnmount(() => {
           </FlashlightReveal>
         </div>
       </div>
-
     </div>
 
     <!-- Logo positioned absolutely so it doesn't pull the centred hero off-axis.
@@ -160,12 +166,37 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
+    <!-- Secondary nav at the bottom — sits above the meta strip. Faint by
+         default, brightens under the flashlight like everything else. -->
+    <nav class="hero-nav enter enter--5" aria-label="Other pages">
+      <RouterLink to="/about" class="hero-nav__link hero-nav__link--left">
+        <FlashlightReveal :radius="200">
+          <span class="hero-nav__inner">
+            <span class="hero-nav__arrow" aria-hidden="true">←</span>
+            <span class="hero-nav__label">Process</span>
+          </span>
+        </FlashlightReveal>
+      </RouterLink>
+      <RouterLink to="/contact" class="hero-nav__link hero-nav__link--right">
+        <FlashlightReveal :radius="200">
+          <span class="hero-nav__inner">
+            <span class="hero-nav__label">Contact</span>
+            <span class="hero-nav__arrow" aria-hidden="true">→</span>
+          </span>
+        </FlashlightReveal>
+      </RouterLink>
+    </nav>
+
     <div class="meta-strip enter enter--5">
-      <div class="meta-left">
-        <span class="pulse" aria-hidden="true" />
-        <span class="label">Currently taking briefs for Q3</span>
-      </div>
-      <span class="label">Sydney · 33.86°S, 151.20°E</span>
+      <FlashlightReveal :radius="200">
+        <div class="meta-inner meta-inner--left">
+          <span class="pulse" aria-hidden="true" />
+          <span class="label">Currently taking briefs for Q3</span>
+        </div>
+      </FlashlightReveal>
+      <FlashlightReveal :radius="200">
+        <span class="label meta-inner meta-inner--right">Sydney · 33.86°S, 151.20°E</span>
+      </FlashlightReveal>
     </div>
   </main>
 </template>
@@ -174,7 +205,7 @@ onBeforeUnmount(() => {
 .home {
   min-height: 100vh;
   position: relative;
-  padding: 140px 64px 140px;
+  padding: 140px 64px 180px; /* bottom padding leaves room for hero-nav + meta strip */
   display: flex;
   flex-direction: column;
   align-items: center;     /* horizontally centre eyebrow + stage */
@@ -217,22 +248,25 @@ onBeforeUnmount(() => {
 }
 
 .eyebrow {
-  display: flex;
-  align-items: center;
-  gap: 20px;
   position: relative;
   z-index: 1;
 }
 
+.eyebrow-inner {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
 .eyebrow-text {
-  color: var(--grey-500);
   white-space: nowrap;
 }
 
 .line {
   width: 40px;
   height: 1px;
-  background: var(--grey-700);
+  background: currentColor;
+  opacity: 0.45;
   flex-shrink: 0;
 }
 
@@ -251,30 +285,102 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 56px;
-  /* Stagger drives how far the mission slides right of the centred title. */
-  --stagger: clamp(80px, 13vw, 200px);
+  gap: 32px;
 }
 
 .title {
   margin: 0;
   font-weight: 400;
-  text-align: center;       /* both title lines centre on the same axis */
+  text-align: center;
 }
 
+/* Single-line title. Sizes down on smaller viewports via clamp — mobile rule
+   below additionally allows wrapping. */
 .title-text {
   display: block;
   font-family: var(--font-mono);
-  font-size: clamp(34px, 5.2vw, 76px);
-  line-height: 1.06;
-  letter-spacing: -0.02em;  /* less tight than before — lets the mono breathe */
+  font-size: clamp(28px, 4.2vw, 60px);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
   text-transform: uppercase;
   font-weight: 500;
+  white-space: nowrap;
 }
 
-.title-line {
-  display: block;
+/* Hint sits between the title and the mission — a faint instruction about the
+   flashlight interaction. */
+.hint {
+  text-align: center;
 }
+
+.hint-text {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: clamp(11px, 0.85vw, 13px);
+  letter-spacing: 0.16em;
+  text-transform: lowercase;
+  font-weight: 400;
+}
+
+/* Mission statement underneath the centred title. Wrapped in FlashlightReveal
+   like everything else so it brightens under the cursor. */
+.mission {
+  text-align: center;
+  max-width: 560px;
+}
+
+.mission-text {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: clamp(13px, 0.95vw, 14px);
+  line-height: 1.75;
+  letter-spacing: 0.01em;
+  font-weight: 400;
+}
+
+/* Mission's dim layer is one step brighter than the title (which uses
+   FlashlightReveal's default --grey-500). */
+.mission :deep(.layer.dim) {
+  color: var(--grey-300);
+}
+
+/* Bottom Process / Contact navigation hints — sit above the meta strip. */
+.hero-nav {
+  position: absolute;
+  bottom: 104px;
+  left: 64px;
+  right: 64px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 1;
+  font-family: var(--font-mono);
+  pointer-events: none; /* let the FlashlightReveal child handle pointer events */
+}
+
+.hero-nav__link {
+  pointer-events: auto;
+  text-decoration: none;
+  color: inherit;
+}
+
+.hero-nav__inner {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  font-size: clamp(13px, 1vw, 16px);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.hero-nav__arrow {
+  font-family: var(--font-mono);
+  font-size: 1.1em;
+  transition: transform 280ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.hero-nav__link--left:hover  .hero-nav__arrow { transform: translateX(-4px); }
+.hero-nav__link--right:hover .hero-nav__arrow { transform: translateX(4px); }
 
 /* Positioner: parks the logo on the right side of the page, vertically
    centred. Kept separate from the .logo node so the entry/flourish/breath
@@ -326,32 +432,6 @@ onBeforeUnmount(() => {
   }
 }
 
-.mission {
-  margin: 0;
-  /* Mission steps off to the right of the centred title — one stagger step.
-     `align-self: end` lifts the indent off the centred parent so the mission
-     can sit to the right of the centre axis instead of inheriting centring. */
-  align-self: center;
-  padding-left: var(--stagger);
-  max-width: 520px;
-}
-
-.mission-text {
-  display: block;
-  font-family: var(--font-mono);
-  font-size: clamp(13px, 0.95vw, 14px);
-  line-height: 1.75;
-  letter-spacing: 0.01em;
-  font-weight: 400;
-}
-
-/* Mission's dim layer renders one step brighter than the title (which uses
-   FlashlightReveal's default --grey-500). `:deep()` reaches into the slotted
-   FlashlightReveal layers. The bright reveal still lifts to --grey-100. */
-.mission :deep(.layer.dim) {
-  color: var(--grey-300);
-}
-
 .meta-strip {
   position: absolute;
   bottom: 48px;
@@ -363,10 +443,14 @@ onBeforeUnmount(() => {
   z-index: 1;
 }
 
-.meta-left {
-  display: flex;
+.meta-inner {
+  display: inline-flex;
   align-items: center;
   gap: 10px;
+}
+
+.meta-inner--right {
+  display: inline-block;
 }
 
 .pulse {
@@ -385,11 +469,11 @@ onBeforeUnmount(() => {
 
 @media (max-width: 880px) {
   .home {
-    padding: 110px 22px 140px; /* extra bottom for the stacked meta strip */
-    gap: 44px;
+    padding: 110px 22px 200px; /* extra bottom for stacked hero-nav + meta strip */
+    gap: 36px;
   }
 
-  .eyebrow {
+  .eyebrow-inner {
     gap: 14px;
   }
 
@@ -398,33 +482,30 @@ onBeforeUnmount(() => {
   }
 
   .hero-stack {
-    gap: 28px;
+    gap: 20px;
   }
 
   .logo-positioner {
-    /* Drop the absolute side-positioning on mobile — let the logo flow inline
-       under the mission for the stacked column layout. */
     position: static;
     transform: none;
-    margin-top: 8px;
-    align-self: start;
+    margin-top: 4px;
+    align-self: center;
   }
 
   .title-text {
-    /* Slightly larger floor so it still reads as a display headline on small screens. */
-    font-size: clamp(36px, 12vw, 56px);
-    line-height: 1.04;
+    font-size: clamp(28px, 9vw, 44px);
+    line-height: 1.08;
+    white-space: normal; /* allow wrapping on narrow viewports */
   }
 
-  .hero-stack {
-    /* Tighter stagger on mobile so mission isn't pushed off-screen. */
-    --stagger: clamp(20px, 6vw, 36px);
-    gap: 32px;
+  /* "use cursor to look around" makes no sense on touch — hide. */
+  .hint {
+    display: none;
   }
 
   .mission {
-    align-self: stretch; /* let the wrap fill on mobile rather than stay pinned right */
-    padding-left: var(--stagger);
+    max-width: 100%;
+    padding: 0 4px;
   }
 
   .mission-text {
@@ -432,10 +513,21 @@ onBeforeUnmount(() => {
     line-height: 1.7;
   }
 
+  .hero-nav {
+    left: 22px;
+    right: 22px;
+    bottom: 92px;
+  }
+
+  .hero-nav__inner {
+    font-size: 12px;
+    gap: 10px;
+  }
+
   .meta-strip {
     left: 22px;
     right: 22px;
-    bottom: 28px;
+    bottom: 24px;
     flex-direction: column;
     align-items: flex-start;
     gap: 10px;

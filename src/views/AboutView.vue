@@ -1,7 +1,7 @@
 <script setup>
 import ServiceRow from '../components/ServiceRow.vue'
 import CaseStudyCard from '../components/CaseStudyCard.vue'
-import ProcessStep from '../components/ProcessStep.vue'
+import ProcessRow from '../components/ProcessRow.vue'
 
 const services = [
   {
@@ -56,30 +56,31 @@ const caseStudies = [
   },
 ]
 
+// 3 steps (Handover consolidated into Build & Launch per the fig.2 brief).
+// Each row alternates which side the slide block sits on; the scroll reveal
+// for each row comes in from that same side so the motion reads as the slide
+// arriving from off-canvas.
 const processSteps = [
   {
     number: '01',
     title: 'Brief',
     duration: 'Week 1',
-    description: 'We meet, we listen, we write back what we heard.',
+    description: 'We meet, we listen, we write back what we heard. No proposal goes out until both sides have read the same problem.',
+    side: 'right',  // slide on right → reveal from right
   },
   {
     number: '02',
     title: 'Design',
     duration: 'Weeks 2–5',
-    description: 'Direction, refinement, decisions. Fewer rounds, longer ones.',
+    description: 'Direction, refinement, decisions. Fewer rounds, longer ones. The system is set in this phase, not painted on later.',
+    side: 'left',   // slide on left → reveal from left
   },
   {
     number: '03',
-    title: 'Build',
-    duration: 'Weeks 4–10',
-    description: 'Production happens in parallel with late-stage design.',
-  },
-  {
-    number: '04',
-    title: 'Handover',
-    duration: 'Weeks 11–12',
-    description: 'Documentation, training, and a quiet exit.',
+    title: 'Build & Launch',
+    duration: 'Weeks 4–12',
+    description: 'Production happens in parallel with late-stage design. Handover, documentation, and training fold into the last two weeks.',
+    side: 'right',  // back to right
   },
 ]
 
@@ -154,15 +155,15 @@ const stats = [
 
     <!-- Section 4: Process -->
     <section class="section">
-      <p v-reveal class="label label--lg section-label">— Engagement</p>
+      <p v-reveal class="label label--lg section-label">— Process</p>
       <h2 v-reveal="{ delay: 120 }" class="process-heading">
         Most engagements run six to twelve <em>weeks</em>.
       </h2>
-      <div class="process-steps">
-        <ProcessStep
+      <div class="process-rows">
+        <ProcessRow
           v-for="(s, i) in processSteps"
           :key="s.number"
-          v-reveal="{ delay: 260 + i * 110 }"
+          v-reveal="{ from: s.side, delay: 80 + i * 60 }"
           v-bind="s"
         />
       </div>
@@ -293,9 +294,16 @@ const stats = [
   color: var(--grey-300);
 }
 
-.process-steps {
+.process-rows {
   display: flex;
-  gap: 48px;
+  flex-direction: column;
+  gap: 120px;
+}
+
+@media (max-width: 880px) {
+  .process-rows {
+    gap: 64px;
+  }
 }
 
 /* Clients */
@@ -373,10 +381,7 @@ const stats = [
     grid-template-columns: 1fr;
   }
 
-  .process-steps {
-    flex-direction: column;
-    gap: 0;
-  }
+  /* `.process-rows` mobile gap already set in the rule above the media query */
 
   .stats-grid {
     grid-template-columns: 1fr 1fr;

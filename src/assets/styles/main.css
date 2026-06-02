@@ -20,15 +20,19 @@
 
 /* Scroll-reveal: paired with the v-reveal directive (src/directives/reveal.js).
    Element starts hidden + translated; .is-visible removes the offset and fades in.
-   Per-element delay can be set via inline style: --reveal-delay: 120ms. */
+   Per-element delay can be set via inline style: --reveal-delay: 120ms.
+   Direction is set via .reveal--from-{up,left,right} (default: up). */
 .reveal {
   opacity: 0;
-  transform: translateY(28px);
   transition:
     opacity 900ms cubic-bezier(0.2, 0.7, 0.2, 1) var(--reveal-delay, 0ms),
     transform 900ms cubic-bezier(0.2, 0.7, 0.2, 1) var(--reveal-delay, 0ms);
   will-change: opacity, transform;
 }
+
+.reveal--from-up    { transform: translateY(28px); }
+.reveal--from-left  { transform: translateX(-48px); }
+.reveal--from-right { transform: translateX(48px); }
 
 .reveal.is-visible {
   opacity: 1;
@@ -36,7 +40,10 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .reveal {
+  .reveal,
+  .reveal--from-up,
+  .reveal--from-left,
+  .reveal--from-right {
     opacity: 1;
     transform: none;
     transition: none;

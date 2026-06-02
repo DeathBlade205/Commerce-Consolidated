@@ -1,11 +1,15 @@
-// v-reveal — fade up an element when it scrolls into view.
+// v-reveal — reveal an element when it scrolls into view.
 //
 // Usage:
-//   <div v-reveal>                          // basic
-//   <div v-reveal="{ delay: 200 }">         // delayed in ms
-//   <div v-reveal="{ delay: i * 80 }">      // per-item stagger inside a v-for
+//   <div v-reveal>                                       // default: fade + lift up
+//   <div v-reveal="{ delay: 200 }">                      // delayed in ms
+//   <div v-reveal="{ delay: i * 80 }">                   // per-item stagger inside v-for
+//   <div v-reveal="{ from: 'left' }">                    // slide from left
+//   <div v-reveal="{ from: 'right', delay: 120 }">       // slide from right + delay
 //
-// Pairs with .reveal / .reveal.is-visible global styles in main.css.
+// Pairs with the global `.reveal` / `.reveal--from-{up,left,right}` / `.is-visible`
+// styles in main.css. The directive adds a base `.reveal` class plus a direction
+// modifier so CSS can pick the right transform.
 
 const OBSERVED = new WeakMap()
 
@@ -22,10 +26,15 @@ const observer = typeof window !== 'undefined' && 'IntersectionObserver' in wind
     )
   : null
 
+const VALID_DIRS = new Set(['up', 'left', 'right'])
+
 export const vReveal = {
   mounted(el, binding) {
-    el.classList.add('reveal')
-    const delay = Number(binding.value?.delay) || 0
+    const opts = binding.value || {}
+    const delay = Number(opts.delay) || 0
+    const from = VALID_DIRS.has(opts.from) ? opts.from : 'up'
+
+    el.classList.add('reveal', `reveal--from-${from}`)
     if (delay) el.style.setProperty('--reveal-delay', `${delay}ms`)
 
     if (!observer) {
