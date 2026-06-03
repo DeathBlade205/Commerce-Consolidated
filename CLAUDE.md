@@ -12,8 +12,10 @@ Website for **Commerce Consolidated**, a small Sydney digital agency offering We
 ```
 src/
   main.js                  # App entry — mounts Vue, imports router + CSS, registers v-reveal directive
-  App.vue                  # Root: CustomCursor, GrainOverlay, CornerMarks, NavBar, RouterView (fade transition)
-  router/index.js          # Routes: / → Home, /about → Practice, /contact → Contact
+  App.vue                  # Root: CustomCursor, GrainOverlay, CornerMarks, NavBar, RouterView. Hosts directional slide transition (slide-left / slide-right) driven by route meta.x — Process sits to the LEFT of Home (x=-1), Contact to the RIGHT (x=1). Calls useScrollNav() so wheel/touch deltas trigger page swaps at scroll edges.
+  router/index.js          # Routes with meta.x: / → Home (0), /about → Process (-1), /contact → Contact (1). meta.x drives the slide direction.
+  composables/
+    useScrollNav.js        # Wheel + touch listener. Accumulates delta at the scroll edge and fires router.push to the left/right neighbor route once threshold (~320px wheel, 90px swipe) is crossed. Locks for 900ms during the transition so inertia bursts don't chain swaps. Disabled under prefers-reduced-motion.
   directives/
     reveal.js              # v-reveal — shared IntersectionObserver. Adds `is-visible` when element scrolls into view. Optional binding: { delay: ms } for per-item stagger.
   assets/styles/

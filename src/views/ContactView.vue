@@ -1,4 +1,6 @@
 <script setup>
+import PageEdgeHint from '../components/PageEdgeHint.vue'
+
 const blocks = [
   {
     label: 'New Business',
@@ -34,6 +36,10 @@ const blocks = [
 
 <template>
   <main class="contact">
+
+    <!-- Edge hint: from Contact, scrolling up at the top swaps to Home.
+         Also clickable as a direct nav. -->
+    <PageEdgeHint to="/" label="Home" direction="up" />
 
     <p v-reveal class="label label--lg section-label">— Contact</p>
 

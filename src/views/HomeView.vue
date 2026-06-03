@@ -31,7 +31,7 @@ function dispatchMove(x, y) {
   window.dispatchEvent(ev)
 }
 
-// Auto-flashlight intro: trace a path across title -> logo -> mission so the page
+// Auto-flashlight intro: trace a path across title -> logo -> hint so the page
 // reveals itself once before handing control back to the real cursor.
 // Skipped on touch devices (no hover semantics — the sweep just flickers content
 // that's already fully visible via FlashlightReveal's touch fallback).
@@ -132,22 +132,24 @@ onBeforeUnmount(() => {
       <div class="hero-stack">
         <h1 class="title enter enter--2">
           <FlashlightReveal :radius="280">
-            <span class="title-text">Commerce Consolidated</span>
+            <span class="title-text">
+              <span class="title-line title-line--1">Commerce</span>
+              <span class="title-line title-line--2">Consolidated</span>
+            </span>
           </FlashlightReveal>
         </h1>
+
+        <!-- Subtitle directly under the title (per "subtitle text" sketch
+             annotation). One short line stating what the studio does. -->
+        <div class="subtitle enter" style="--enter-delay: 520ms;">
+          <FlashlightReveal :radius="240">
+            <span class="subtitle-text">Digital practice. Web, brand, marketing.</span>
+          </FlashlightReveal>
+        </div>
 
         <div class="hint enter enter--3">
           <FlashlightReveal :radius="220">
             <span class="hint-text">use cursor to look around</span>
-          </FlashlightReveal>
-        </div>
-
-        <div class="mission enter enter--4">
-          <FlashlightReveal :radius="240">
-            <span class="mission-text">
-              A digital agency for brands that would rather be understood than seen.
-              Web, identity, and marketing — built quietly, finished well.
-            </span>
           </FlashlightReveal>
         </div>
       </div>
@@ -166,23 +168,32 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
-    <!-- Secondary nav at the bottom — sits above the meta strip. Faint by
-         default, brightens under the flashlight like everything else. -->
+    <!-- Big directional callouts at the bottom corners. Per the sketch:
+         "Large text to make it clear that they are directions to go in."
+         The page is conceptually a horizontal line: Process sits on the left,
+         Contact on the right. Scrolling triggers the swap (see useScrollNav);
+         clicking these links also works. -->
     <nav class="hero-nav enter enter--5" aria-label="Other pages">
       <RouterLink to="/about" class="hero-nav__link hero-nav__link--left">
-        <FlashlightReveal :radius="200">
+        <FlashlightReveal :radius="220">
           <span class="hero-nav__inner">
             <span class="hero-nav__arrow" aria-hidden="true">←</span>
             <span class="hero-nav__label">Process</span>
           </span>
         </FlashlightReveal>
+        <FlashlightReveal :radius="160">
+          <span class="hero-nav__cue">scroll up</span>
+        </FlashlightReveal>
       </RouterLink>
       <RouterLink to="/contact" class="hero-nav__link hero-nav__link--right">
-        <FlashlightReveal :radius="200">
+        <FlashlightReveal :radius="220">
           <span class="hero-nav__inner">
             <span class="hero-nav__label">Contact</span>
             <span class="hero-nav__arrow" aria-hidden="true">→</span>
           </span>
+        </FlashlightReveal>
+        <FlashlightReveal :radius="160">
+          <span class="hero-nav__cue">scroll down</span>
         </FlashlightReveal>
       </RouterLink>
     </nav>
@@ -270,9 +281,9 @@ onBeforeUnmount(() => {
   flex-shrink: 0;
 }
 
-/* Centred hero: the hero-stack sits in the middle of the page horizontally;
-   the logo is absolutely positioned to one side so it doesn't push the
-   composition off-centre. */
+/* Hero layout: title block sits LEFT of centre, logo sits a few pixels RIGHT
+   of centre — so the eye reads the composition as a title/logo pair across
+   the optical midline rather than a centred stack with a distant logo. */
 .stage {
   position: relative;
   z-index: 1;
@@ -284,33 +295,69 @@ onBeforeUnmount(() => {
 .hero-stack {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  /* Left-anchor the stack: the staircase title's first line ("Commerce") sets
+     the left edge for the subtitle + hint underneath. */
+  align-items: flex-start;
   gap: 32px;
+  /* Nudge well left of centre so the logo (parked to the right) has clear
+     air between the title block and the mark — no overlap on wide viewports. */
+  transform: translateX(-32%);
 }
 
 .title {
   margin: 0;
   font-weight: 400;
-  text-align: center;
+  text-align: left;
 }
 
-/* Single-line title. Sizes down on smaller viewports via clamp — mobile rule
-   below additionally allows wrapping. */
+/* Staircase title: "Commerce" on top-left, "Consolidated" indented below.
+   Each line is its own block so the indent on line 2 doesn't affect line 1. */
 .title-text {
-  display: block;
+  display: flex;
+  flex-direction: column;
   font-family: var(--font-mono);
-  font-size: clamp(28px, 4.2vw, 60px);
-  line-height: 1.1;
+  font-size: clamp(32px, 4.6vw, 68px);
+  line-height: 1.05;
   letter-spacing: -0.02em;
   text-transform: uppercase;
   font-weight: 500;
-  white-space: nowrap;
 }
 
-/* Hint sits between the title and the mission — a faint instruction about the
-   flashlight interaction. */
+.title-line {
+  display: block;
+}
+
+/* Line 2 indent — drops "Consolidated" to the right of "Commerce"'s right
+   edge so the two lines form the staircase shown in the Figma mockup. */
+.title-line--2 {
+  padding-left: 2em;
+}
+
+/* Subtitle: one short factual line directly under the title. Brighter than
+   the hint (it's content, not a UI instruction) but smaller than the title.
+   Left-aligned to "Commerce"'s left edge (matches the title block). */
+.subtitle {
+  text-align: left;
+}
+
+.subtitle-text {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: clamp(12px, 1vw, 15px);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 400;
+}
+
+.subtitle :deep(.layer.dim) {
+  color: var(--grey-300);
+}
+
+/* Hint sits under the subtitle — a faint instruction about the flashlight
+   interaction. Almost invisible by default; only readable when the cursor
+   (flashlight) is right on top of it. */
 .hint {
-  text-align: center;
+  text-align: left;
 }
 
 .hint-text {
@@ -322,26 +369,10 @@ onBeforeUnmount(() => {
   font-weight: 400;
 }
 
-/* Mission statement underneath the centred title. Wrapped in FlashlightReveal
-   like everything else so it brightens under the cursor. */
-.mission {
-  text-align: center;
-  max-width: 560px;
-}
-
-.mission-text {
-  display: block;
-  font-family: var(--font-mono);
-  font-size: clamp(13px, 0.95vw, 14px);
-  line-height: 1.75;
-  letter-spacing: 0.01em;
-  font-weight: 400;
-}
-
-/* Mission's dim layer is one step brighter than the title (which uses
-   FlashlightReveal's default --grey-500). */
-.mission :deep(.layer.dim) {
-  color: var(--grey-300);
+/* Crush the hint's dim layer: barely above background. Only fully readable
+   when the flashlight passes over it. */
+.hint :deep(.layer.dim) {
+  color: rgba(255, 255, 255, 0.08);
 }
 
 /* Bottom Process / Contact navigation hints — sit above the meta strip. */
@@ -364,30 +395,57 @@ onBeforeUnmount(() => {
   color: inherit;
 }
 
+/* Each link is a two-line block: big directional label on top, small "scroll"
+   cue underneath so the swipe affordance is discoverable. */
+.hero-nav__link {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.hero-nav__link--left  { align-items: flex-start; }
+.hero-nav__link--right { align-items: flex-end; }
+
 .hero-nav__inner {
   display: inline-flex;
   align-items: center;
-  gap: 14px;
-  font-size: clamp(13px, 1vw, 16px);
-  letter-spacing: 0.18em;
+  gap: 18px;
+  font-size: clamp(22px, 2.4vw, 34px);
+  letter-spacing: 0.06em;
   text-transform: uppercase;
+  font-weight: 500;
 }
 
 .hero-nav__arrow {
   font-family: var(--font-mono);
-  font-size: 1.1em;
+  font-size: 1.2em;
+  line-height: 1;
   transition: transform 280ms cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 
-.hero-nav__link--left:hover  .hero-nav__arrow { transform: translateX(-4px); }
-.hero-nav__link--right:hover .hero-nav__arrow { transform: translateX(4px); }
+.hero-nav__link--left:hover  .hero-nav__arrow { transform: translateX(-8px); }
+.hero-nav__link--right:hover .hero-nav__arrow { transform: translateX(8px); }
 
-/* Positioner: parks the logo on the right side of the page, vertically
-   centred. Kept separate from the .logo node so the entry/flourish/breath
-   animations on `.logo` can freely set `transform` without losing position. */
+/* Tiny secondary cue: "scroll up" / "scroll down". Same dim-by-default
+   treatment as everything else on the home page. */
+.hero-nav__cue {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+}
+
+/* Positioner: parks the logo clearly right of centre, far enough from the
+   title block (which is nudged left) that the two read as distinct elements
+   across the optical midline. Uses a viewport-scaled offset so the gap
+   tracks with the title's clamp()-based size. Kept separate from the .logo
+   node so the entry/flourish/breath animations on `.logo` can freely set
+   `transform` without losing position. */
 .logo-positioner {
   position: absolute;
-  right: 8vw;
+  left: calc(50% + 14vw);
+  right: auto;
   top: 50%;
   transform: translateY(-50%);
   z-index: 1;
@@ -415,7 +473,7 @@ onBeforeUnmount(() => {
 }
 
 /* Continuous breath after the flourish settles — keeps the logo alive without
-   competing with the title/mission. ~7s cycle, very subtle range. */
+   competing with the title. ~7s cycle, very subtle range. */
 .logo--breath {
   animation: breath 7s ease-in-out infinite;
 }
@@ -441,6 +499,18 @@ onBeforeUnmount(() => {
   justify-content: space-between;
   align-items: center;
   z-index: 1;
+}
+
+/* Push the meta strip's dim layer one notch quieter than the default
+   FlashlightReveal grey-500. Per the "do not overload area with text or
+   information" annotation — the strip should sit just barely visible until
+   the cursor passes over it. */
+.meta-strip :deep(.layer.dim) {
+  color: var(--grey-700);
+}
+
+.meta-strip .pulse {
+  opacity: 0.5;
 }
 
 .meta-inner {
@@ -483,10 +553,12 @@ onBeforeUnmount(() => {
 
   .hero-stack {
     gap: 20px;
+    transform: none; /* reset desktop nudge — mobile stacks vertically */
   }
 
   .logo-positioner {
     position: static;
+    left: auto;
     transform: none;
     margin-top: 4px;
     align-self: center;
@@ -503,16 +575,6 @@ onBeforeUnmount(() => {
     display: none;
   }
 
-  .mission {
-    max-width: 100%;
-    padding: 0 4px;
-  }
-
-  .mission-text {
-    font-size: 13px;
-    line-height: 1.7;
-  }
-
   .hero-nav {
     left: 22px;
     right: 22px;
@@ -520,8 +582,13 @@ onBeforeUnmount(() => {
   }
 
   .hero-nav__inner {
-    font-size: 12px;
+    font-size: 18px;
     gap: 10px;
+  }
+
+  .hero-nav__cue {
+    font-size: 9px;
+    letter-spacing: 0.22em;
   }
 
   .meta-strip {

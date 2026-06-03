@@ -3,11 +3,14 @@ import { ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import LogoMark from './LogoMark.vue'
 
-// UI-only language toggle for now. Wire to i18n later — for now flipping the
-// state just swaps the visible glyph so the affordance exists in the layout.
+// UI-only language switch for now. Wire to i18n later — flipping `lang` just
+// drives the active segment of the switch. Per the sketch annotation
+// ("if you're swapping the positions, animate it"), this is a true sliding
+// segmented switch: the selected side widens + highlights, the unselected
+// side shrinks to a chip.
 const lang = ref('EN')
-function toggleLang() {
-  lang.value = lang.value === 'EN' ? '中' : 'EN'
+function setLang(value) {
+  lang.value = value
 }
 </script>
 
@@ -17,24 +20,23 @@ function toggleLang() {
       <LogoMark :size="42" compact />
     </RouterLink>
 
-    <div class="nav-right">
-      <!-- No `Home` link — the CC logo on the left handles home navigation. -->
-      <div class="links">
-        <RouterLink to="/about" class="nav-link">Process</RouterLink>
-        <RouterLink to="/contact" class="nav-link">Contact</RouterLink>
-      </div>
-
+    <div class="lang-switch" role="radiogroup" aria-label="Language">
       <button
         type="button"
-        class="lang-toggle"
-        :aria-label="`Switch language (currently ${lang})`"
-        :aria-pressed="lang === '中'"
-        @click="toggleLang"
-      >
-        <span class="lang-toggle__current">{{ lang }}</span>
-        <span class="lang-toggle__sep" aria-hidden="true">/</span>
-        <span class="lang-toggle__other">{{ lang === 'EN' ? '中' : 'EN' }}</span>
-      </button>
+        class="lang-switch__option"
+        :class="{ 'lang-switch__option--active': lang === 'EN' }"
+        role="radio"
+        :aria-checked="lang === 'EN'"
+        @click="setLang('EN')"
+      >EN</button>
+      <button
+        type="button"
+        class="lang-switch__option"
+        :class="{ 'lang-switch__option--active': lang === '中' }"
+        role="radio"
+        :aria-checked="lang === '中'"
+        @click="setLang('中')"
+      >中</button>
     </div>
   </nav>
 </template>
@@ -64,108 +66,72 @@ function toggleLang() {
   opacity: 0.78;
 }
 
-.nav-right {
-  display: flex;
-  align-items: center;
-  gap: 28px;
-}
-
-.links {
-  display: flex;
-  gap: 32px;
-}
-
-.nav-link {
-  font-family: var(--font-sans);
-  font-weight: 400;
-  font-size: 12px;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--grey-300);
-  position: relative;
-  padding-bottom: 3px;
-  transition: color 0.3s ease;
-}
-
-.nav-link::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  width: 0;
-  height: 1px;
-  background: var(--grey-100);
-  transition: width 0.4s cubic-bezier(0.65, 0, 0.35, 1);
-}
-
-.nav-link:hover {
-  color: var(--grey-100);
-}
-
-.nav-link:hover::after {
-  width: 100%;
-}
-
-.nav-link.router-link-active {
-  color: var(--grey-100);
-}
-
-.nav-link.router-link-active::after {
-  width: 100%;
-}
-
-/* Language toggle: small typographic switch — uses the same letter-spacing as
-   the nav links so it reads as a peer affordance, separated by a vertical bar. */
-.lang-toggle {
+/* Segmented language switch. Active segment flex-grows and fills with the
+   bright pill background; inactive segment shrinks to a chip width. Animated
+   flex-basis + color makes the swap read as a slide rather than a flicker. */
+.lang-switch {
   display: inline-flex;
-  align-items: baseline;
-  gap: 6px;
-  padding: 4px 10px;
+  align-items: stretch;
+  padding: 3px;
   border: 1px solid var(--hairline);
   border-radius: 999px;
   background: transparent;
+  height: 28px;
   font-family: var(--font-mono);
+}
+
+.lang-switch__option {
+  /* Inactive default: chip width, dim, no background. */
+  flex: 0 0 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 10px;
+  border: none;
+  background: transparent;
+  border-radius: 999px;
+  color: var(--grey-500);
+  font-family: inherit;
   font-size: 11px;
   letter-spacing: 0.14em;
-  color: var(--grey-300);
   cursor: pointer;
-  transition: color 0.3s ease, border-color 0.3s ease;
+  transition:
+    flex 420ms cubic-bezier(0.65, 0, 0.35, 1),
+    background 240ms cubic-bezier(0.65, 0, 0.35, 1),
+    color 240ms ease;
 }
 
-.lang-toggle:hover {
-  color: var(--grey-100);
-  border-color: rgba(255, 255, 255, 0.25);
+.lang-switch__option:hover {
+  color: var(--grey-300);
 }
 
-.lang-toggle__current {
-  color: var(--grey-100);
+.lang-switch__option--active {
+  flex: 1 0 auto;
+  background: var(--grey-100);
+  color: #0a0a0a;
   font-weight: 500;
 }
 
-.lang-toggle__sep {
-  opacity: 0.45;
+.lang-switch__option--active:hover {
+  color: #0a0a0a; /* don't dim the active label on hover */
 }
 
-.lang-toggle__other {
-  opacity: 0.7;
+@media (prefers-reduced-motion: reduce) {
+  .lang-switch__option {
+    transition: background 120ms ease, color 120ms ease;
+  }
 }
 
 @media (max-width: 880px) {
   .nav {
     padding: 22px 22px;
   }
-  .nav-right {
-    gap: 16px;
+  .lang-switch {
+    height: 24px;
   }
-  .links {
-    gap: 16px;
-  }
-  .nav-link {
-    font-size: 10px;
-    letter-spacing: 0.14em;
-  }
-  .lang-toggle {
-    padding: 3px 8px;
+  .lang-switch__option {
+    flex-basis: 26px;
+    padding: 0 8px;
     font-size: 10px;
   }
 }

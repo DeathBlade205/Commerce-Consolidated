@@ -2,6 +2,7 @@
 import ServiceRow from '../components/ServiceRow.vue'
 import CaseStudyCard from '../components/CaseStudyCard.vue'
 import ProcessRow from '../components/ProcessRow.vue'
+import PageEdgeHint from '../components/PageEdgeHint.vue'
 
 const services = [
   {
@@ -56,31 +57,31 @@ const caseStudies = [
   },
 ]
 
-// 3 steps (Handover consolidated into Build & Launch per the fig.2 brief).
-// Each row alternates which side the slide block sits on; the scroll reveal
-// for each row comes in from that same side so the motion reads as the slide
-// arriving from off-canvas.
+// 3 steps. `side` now means which side the SMALL marker box sits on (per the
+// new ProcessRow layout from the sketches). Alternates left → right → left.
+// The scroll reveal direction is keyed off `side` too, so each row arrives
+// from the same edge its marker lives on.
 const processSteps = [
   {
     number: '01',
     title: 'Brief',
     duration: 'Week 1',
     description: 'We meet, we listen, we write back what we heard. No proposal goes out until both sides have read the same problem.',
-    side: 'right',  // slide on right → reveal from right
+    side: 'left',
   },
   {
     number: '02',
     title: 'Design',
     duration: 'Weeks 2–5',
     description: 'Direction, refinement, decisions. Fewer rounds, longer ones. The system is set in this phase, not painted on later.',
-    side: 'left',   // slide on left → reveal from left
+    side: 'right',
   },
   {
     number: '03',
     title: 'Build & Launch',
     duration: 'Weeks 4–12',
     description: 'Production happens in parallel with late-stage design. Handover, documentation, and training fold into the last two weeks.',
-    side: 'right',  // back to right
+    side: 'left',
   },
 ]
 
@@ -201,6 +202,10 @@ const stats = [
         </div>
       </div>
     </section>
+
+    <!-- Edge hint: from Process, scrolling down at the bottom swaps to Home.
+         Also clickable as a direct nav. -->
+    <PageEdgeHint to="/" label="Home" direction="down" />
 
   </main>
 </template>

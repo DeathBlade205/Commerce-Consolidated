@@ -1,151 +1,120 @@
 <script setup>
-// One row of the Process page: a slide block on one side, a text block on the
-// other. Used inside AboutView to render the 3 staged steps. The parent decides
-// which side the slide sits on via `side`, and which direction the row reveals
-// from via `reveal` (`left` | `right`).
+// One row of the Process page, per the sketch layout:
+// a SMALL bordered "marker" box (step number + title) on one side, alongside a
+// LARGE bordered "body" box (description + duration tag) on the other.
+// The parent decides which side the small marker sits on via `side`. The row's
+// scroll-reveal direction is also derived from `side` so the motion reads as
+// the row arriving from the side the marker lives on.
 defineProps({
   number: { type: String, required: true },
   title: { type: String, required: true },
   duration: { type: String, required: true },
   description: { type: String, required: true },
-  /** Which side the slide / visual block sits on: 'left' | 'right' */
-  side: { type: String, default: 'right' },
-  /** Image src — if omitted, a typographic placeholder is rendered. */
-  image: { type: String, default: '' },
-  /** Optional alt text for the slide. */
-  alt: { type: String, default: '' },
+  /** Which side the SMALL marker box sits on: 'left' | 'right' */
+  side: { type: String, default: 'left' },
 })
 </script>
 
 <template>
-  <article class="proc-row" :class="`proc-row--slide-${side}`">
-    <div class="proc-row__text">
+  <article class="proc-row" :class="`proc-row--marker-${side}`">
+    <aside class="proc-row__marker">
       <p class="label proc-row__step">Step {{ number }}</p>
       <h3 class="proc-row__title">{{ title }}</h3>
-      <p class="label proc-row__duration">{{ duration }}</p>
-      <p class="proc-row__desc">{{ description }}</p>
-    </div>
+    </aside>
 
-    <figure class="proc-row__slide">
-      <img v-if="image" :src="image" :alt="alt" class="proc-row__img" />
-      <!-- Typographic placeholder until real assets land -->
-      <div v-else class="proc-row__placeholder" aria-hidden="true">
-        <span class="proc-row__placeholder-num">{{ number }}</span>
-        <span class="proc-row__placeholder-label">{{ title }}</span>
-      </div>
-    </figure>
+    <div class="proc-row__body">
+      <p class="proc-row__desc">{{ description }}</p>
+      <p class="label proc-row__duration">{{ duration }}</p>
+    </div>
   </article>
 </template>
 
 <style scoped>
+/* Two-column grid: small marker + large body. Default puts the marker on the
+   LEFT; the --marker-right modifier swaps both the grid template and the
+   visual order so the marker ends up on the right. */
 .proc-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
-  gap: 80px;
-  align-items: center;
+  grid-template-columns: minmax(0, 0.55fr) minmax(0, 1.45fr);
+  gap: 48px;
+  align-items: stretch;
 }
 
-/* When the slide is on the LEFT, swap visual order so text sits on the right. */
-.proc-row--slide-left .proc-row__slide { order: 0; }
-.proc-row--slide-left .proc-row__text  { order: 1; }
-.proc-row--slide-left {
-  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+.proc-row--marker-right {
+  grid-template-columns: minmax(0, 1.45fr) minmax(0, 0.55fr);
 }
 
-.proc-row__text {
+.proc-row--marker-right .proc-row__marker { order: 1; }
+.proc-row--marker-right .proc-row__body   { order: 0; }
+
+/* Small marker box: step number on top, step title beneath. Bordered like the
+   sketch's hand-drawn rectangle. */
+.proc-row__marker {
+  border: 1px solid var(--hairline);
+  padding: 36px 32px;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 20px;
+  background: rgba(255, 255, 255, 0.012);
 }
 
 .proc-row__step {
   letter-spacing: 0.32em;
-}
-
-.proc-row__title {
-  font-family: var(--font-serif);
-  font-size: clamp(32px, 4vw, 56px);
-  line-height: 1.05;
-  letter-spacing: -0.015em;
-  color: var(--grey-100);
+  color: var(--grey-500);
   margin: 0;
 }
 
-.proc-row__duration {
-  color: var(--grey-500);
-  margin-top: 4px;
+.proc-row__title {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: clamp(28px, 3vw, 44px);
+  line-height: 1.05;
+  letter-spacing: -0.015em;
+  color: var(--grey-100);
+}
+
+/* Large body box: description + duration tag pinned to the bottom edge. */
+.proc-row__body {
+  border: 1px solid var(--hairline);
+  padding: 40px 44px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  background: rgba(255, 255, 255, 0.012);
+  min-height: 220px; /* keeps the box rectangular when desc is short */
 }
 
 .proc-row__desc {
   font-size: 15px;
   line-height: 1.75;
   color: var(--grey-300);
-  max-width: 46ch;
+  max-width: 56ch;
   margin: 0;
 }
 
-.proc-row__slide {
-  margin: 0;
-  position: relative;
-  border: 1px solid var(--hairline);
-  aspect-ratio: 4 / 3;
-  overflow: hidden;
-  background: rgba(255, 255, 255, 0.015);
-}
-
-.proc-row__img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-/* Placeholder: oversized step number ghosted in the slide area + a small
-   wordmark in the corner. Sits in for real imagery without looking broken. */
-.proc-row__placeholder {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: space-between;
-  padding: 32px;
-  font-family: var(--font-mono);
-}
-
-.proc-row__placeholder-num {
-  font-family: var(--font-serif);
-  font-size: clamp(96px, 18vw, 220px);
-  line-height: 0.85;
-  color: var(--grey-700);
-  align-self: flex-end;
-  margin-top: auto;
-  letter-spacing: -0.04em;
-}
-
-.proc-row__placeholder-label {
-  font-size: 11px;
-  letter-spacing: 0.28em;
-  text-transform: uppercase;
+.proc-row__duration {
   color: var(--grey-500);
+  margin: auto 0 0; /* push to bottom-left of the body box */
 }
 
 @media (max-width: 880px) {
   .proc-row,
-  .proc-row--slide-left {
+  .proc-row--marker-right {
     grid-template-columns: 1fr;
-    gap: 28px;
+    gap: 16px;
   }
-  /* Always show text first on mobile, regardless of slide side. */
-  .proc-row__text { order: 0; }
-  .proc-row__slide { order: 1; }
+  /* Always show marker first on mobile, regardless of side. */
+  .proc-row__marker { order: 0; }
+  .proc-row__body   { order: 1; }
+
+  .proc-row__marker { padding: 24px; }
+  .proc-row__body {
+    padding: 28px;
+    min-height: 0;
+  }
 
   .proc-row__desc {
     font-size: 14px;
-  }
-
-  .proc-row__placeholder {
-    padding: 22px;
   }
 }
 </style>

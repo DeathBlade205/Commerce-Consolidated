@@ -25,10 +25,16 @@ html, body {
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Native pointer hidden — the crosshair reticle in CustomCursor.vue is the
+     pointer. Pointer-device users get the custom one; touch users don't have
+     a system cursor to begin with so this is a no-op for them. */
+  cursor: none;
 }
 
-a, button, [role="button"] {
-  cursor: pointer;
+/* Every interactive element gets `cursor: none` too — otherwise the system
+   pointer flickers back on hover. */
+a, button, [role="button"], input, textarea, select, label {
+  cursor: none;
 }
 
 a {
