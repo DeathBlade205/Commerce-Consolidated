@@ -118,17 +118,11 @@ onBeforeUnmount(() => {
 
 <template>
   <main class="home" :class="{ 'is-pre-enter': !entered }">
-    <div class="eyebrow enter enter--1">
-      <FlashlightReveal :radius="220">
-        <span class="eyebrow-inner">
-          <span class="line" />
-          <span class="label eyebrow-text">Digital Practice · Sydney · Est. 2026</span>
-          <span class="line" />
-        </span>
-      </FlashlightReveal>
-    </div>
-
-    <div class="stage">
+    <!-- Hero composition: title block, vertical divider, logo — all in a single
+         flex row so align-items:center keeps every element on the same Y axis
+         and the gap controls horizontal spacing. No more competing absolute
+         positions. -->
+    <div class="hero-row">
       <div class="hero-stack">
         <h1 class="title enter enter--2">
           <FlashlightReveal :radius="280">
@@ -153,18 +147,19 @@ onBeforeUnmount(() => {
           </FlashlightReveal>
         </div>
       </div>
-    </div>
 
-    <!-- Logo positioned absolutely so it doesn't pull the centred hero off-axis.
-         Hidden behind FlashlightReveal until the cursor passes. -->
-    <div class="logo-positioner">
-      <div
-        class="logo enter enter--3"
-        :class="{ 'logo--flourish': logoFlourish, 'logo--breath': logoBreath }"
-      >
-        <FlashlightReveal hidden :radius="180">
-          <LogoMark :size="160" />
-        </FlashlightReveal>
+      <!-- Vertical divider sits between title block and logo via flex gap. -->
+      <span class="hero-divider enter enter--3" aria-hidden="true" />
+
+      <div class="hero-logo enter enter--3">
+        <div
+          class="logo"
+          :class="{ 'logo--flourish': logoFlourish, 'logo--breath': logoBreath }"
+        >
+          <FlashlightReveal hidden :radius="220">
+            <LogoMark :size="220" />
+          </FlashlightReveal>
+        </div>
       </div>
     </div>
 
@@ -197,18 +192,6 @@ onBeforeUnmount(() => {
         </FlashlightReveal>
       </RouterLink>
     </nav>
-
-    <div class="meta-strip enter enter--5">
-      <FlashlightReveal :radius="200">
-        <div class="meta-inner meta-inner--left">
-          <span class="pulse" aria-hidden="true" />
-          <span class="label">Currently taking briefs for Q3</span>
-        </div>
-      </FlashlightReveal>
-      <FlashlightReveal :radius="200">
-        <span class="label meta-inner meta-inner--right">Sydney · 33.86°S, 151.20°E</span>
-      </FlashlightReveal>
-    </div>
   </main>
 </template>
 
@@ -219,7 +202,7 @@ onBeforeUnmount(() => {
   padding: 140px 64px 180px; /* bottom padding leaves room for hero-nav + meta strip */
   display: flex;
   flex-direction: column;
-  align-items: center;     /* horizontally centre eyebrow + stage */
+  align-items: center;     /* horizontally centre the hero stage */
   justify-content: center; /* vertically centre the hero composition */
   gap: 72px;
   isolation: isolate;
@@ -258,50 +241,25 @@ onBeforeUnmount(() => {
   }
 }
 
-.eyebrow {
+/* Hero layout: title block, divider, logo — sit in a single flex row so they
+   share one Y axis (align-items: center) and one gap-based spacing rhythm.
+   No competing absolute positions, no manual translateX hacks. */
+.hero-row {
   position: relative;
   z-index: 1;
-}
-
-.eyebrow-inner {
   display: flex;
   align-items: center;
-  gap: 20px;
-}
-
-.eyebrow-text {
-  white-space: nowrap;
-}
-
-.line {
-  width: 40px;
-  height: 1px;
-  background: currentColor;
-  opacity: 0.45;
-  flex-shrink: 0;
-}
-
-/* Hero layout: title block sits LEFT of centre, logo sits a few pixels RIGHT
-   of centre — so the eye reads the composition as a title/logo pair across
-   the optical midline rather than a centred stack with a distant logo. */
-.stage {
-  position: relative;
-  z-index: 1;
-  width: 100%;
-  display: flex;
   justify-content: center;
+  gap: clamp(48px, 7vw, 110px);
 }
 
 .hero-stack {
   display: flex;
   flex-direction: column;
-  /* Left-anchor the stack: the staircase title's first line ("Commerce") sets
-     the left edge for the subtitle + hint underneath. */
+  /* Left-anchor the column so the subtitle + hint align with the title's
+     left edge. */
   align-items: flex-start;
   gap: 32px;
-  /* Nudge well left of centre so the logo (parked to the right) has clear
-     air between the title block and the mark — no overlap on wide viewports. */
-  transform: translateX(-32%);
 }
 
 .title {
@@ -327,12 +285,6 @@ onBeforeUnmount(() => {
   display: block;
 }
 
-/* Line 2 indent — drops "Consolidated" to the right of "Commerce"'s right
-   edge so the two lines form the staircase shown in the Figma mockup. */
-.title-line--2 {
-  padding-left: 2em;
-}
-
 /* Subtitle: one short factual line directly under the title. Brighter than
    the hint (it's content, not a UI instruction) but smaller than the title.
    Left-aligned to "Commerce"'s left edge (matches the title block). */
@@ -349,8 +301,10 @@ onBeforeUnmount(() => {
   font-weight: 400;
 }
 
+/* Subtitle dim level matched to the hint below — they sit as a paired block
+   of secondary text, both barely-visible until the flashlight passes. */
 .subtitle :deep(.layer.dim) {
-  color: var(--grey-300);
+  color: rgba(255, 255, 255, 0.08);
 }
 
 /* Hint sits under the subtitle — a faint instruction about the flashlight
@@ -436,19 +390,22 @@ onBeforeUnmount(() => {
   text-transform: uppercase;
 }
 
-/* Positioner: parks the logo clearly right of centre, far enough from the
-   title block (which is nudged left) that the two read as distinct elements
-   across the optical midline. Uses a viewport-scaled offset so the gap
-   tracks with the title's clamp()-based size. Kept separate from the .logo
-   node so the entry/flourish/breath animations on `.logo` can freely set
-   `transform` without losing position. */
-.logo-positioner {
-  position: absolute;
-  left: calc(50% + 14vw);
-  right: auto;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 1;
+/* Vertical hairline — flex automatically centers it vertically between the
+   title block and the logo via align-items: center on .hero-row, and the
+   gap on .hero-row decides how far it sits from each side. */
+.hero-divider {
+  width: 1px;
+  height: 240px;
+  background: var(--hairline);
+  flex-shrink: 0;
+}
+
+/* Logo wrapper — flex flow handles vertical centering. The .logo child still
+   owns its own entry / flourish / breath transforms independently. */
+.hero-logo {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
   pointer-events: none;
 }
 
@@ -459,8 +416,8 @@ onBeforeUnmount(() => {
 }
 
 /* Flourish: scale up + rotate slightly, then settle. Class is added when the
-   intro sweep reaches the logo. Positioning lives on `.logo-positioner`, so
-   these transforms only need to handle the animation itself. */
+   intro sweep reaches the logo. Layout positioning lives on the .hero-row
+   flex parent, so these transforms only need to handle the animation. */
 .logo--flourish {
   animation: flourish 1400ms cubic-bezier(0.22, 1, 0.36, 1);
 }
@@ -490,78 +447,26 @@ onBeforeUnmount(() => {
   }
 }
 
-.meta-strip {
-  position: absolute;
-  bottom: 48px;
-  left: 64px;
-  right: 64px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  z-index: 1;
-}
-
-/* Push the meta strip's dim layer one notch quieter than the default
-   FlashlightReveal grey-500. Per the "do not overload area with text or
-   information" annotation — the strip should sit just barely visible until
-   the cursor passes over it. */
-.meta-strip :deep(.layer.dim) {
-  color: var(--grey-700);
-}
-
-.meta-strip .pulse {
-  opacity: 0.5;
-}
-
-.meta-inner {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.meta-inner--right {
-  display: inline-block;
-}
-
-.pulse {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #fff;
-  display: inline-block;
-  animation: pulse 2.4s ease-in-out infinite;
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.3; }
-}
-
 @media (max-width: 880px) {
   .home {
-    padding: 110px 22px 200px; /* extra bottom for stacked hero-nav + meta strip */
+    padding: 110px 22px 140px;
     gap: 36px;
   }
 
-  .eyebrow-inner {
-    gap: 14px;
+  /* Mobile: hero row collapses to a vertical stack — title on top, logo
+     beneath — so the divider isn't useful here. */
+  .hero-row {
+    flex-direction: column;
+    gap: 28px;
   }
 
-  .line {
-    width: 28px;
+  .hero-divider {
+    display: none;
   }
 
   .hero-stack {
     gap: 20px;
-    transform: none; /* reset desktop nudge — mobile stacks vertically */
-  }
-
-  .logo-positioner {
-    position: static;
-    left: auto;
-    transform: none;
-    margin-top: 4px;
-    align-self: center;
+    align-items: center; /* center text under the title when stacked */
   }
 
   .title-text {
@@ -589,15 +494,6 @@ onBeforeUnmount(() => {
   .hero-nav__cue {
     font-size: 9px;
     letter-spacing: 0.22em;
-  }
-
-  .meta-strip {
-    left: 22px;
-    right: 22px;
-    bottom: 24px;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
   }
 }
 </style>

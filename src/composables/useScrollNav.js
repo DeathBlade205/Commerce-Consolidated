@@ -1,59 +1,57 @@
-// useScrollNav: scroll-triggered horizontal page navigation + charge state.
+// useScrollNav: scroll-triggered horizontal navigation.
 //
-// Pages live on a number line (router meta.x): process=-1, home=0, contact=1.
-// When the user scrolls past a threshold AND the page is at the relevant scroll
-// edge (top for "go left", bottom for "go right"), we navigate to the neighbor.
-// The slide transition lives in App.vue.
+// Two layers of swap:
+//   1. PAGE swap — Process (-1) ↔ Home (0) ↔ Contact (1). Each wheel-threshold
+//      crossing at a page boundary fires a route change with a slide.
+//   2. STEP swap (optional) — a page can register itself as a "step host"
+//      (count of internal steps + a current-step ref + a setStep callback).
+//      While the host is registered AND the next step is reachable in the
+//      direction of scroll, wheel-threshold crossings fire step transitions
+//      instead of page swaps. At the deck boundary, scroll falls through to
+//      the page-swap behaviour above.
 //
-// The composable also exposes `scrollCharge` (a signed reactive ratio, -1..1)
-// so the PageProgressBar can render the user's "charge" toward the next page
-// in real time. Charge decays back to 0 if the user stops scrolling — gives
-// human-error buffer so an accidental flick doesn't commit a swap.
+// The composable exposes `scrollCharge` (-1..1 reactive) so the
+// PageProgressBar can render the user's accumulating intent. Charge is only
+// reflected when the next action is a PAGE swap — during step charging,
+// scrollCharge stays at 0 (the bottom page bar would otherwise mislead).
 //
-// Rules of engagement:
-//   • Trigger fires once per intent, then locks until the transition completes.
-//   • Internal page scrolling still works: we only "consume" wheel deltas when
-//     the page is at its edge AND the user is pushing past that edge.
-//   • Touch: same idea via touchstart/touchend deltas.
-//   • Disabled on prefers-reduced-motion.
+// Decay: after 240ms of no wheel input the accumulator drains back to 0 so
+// an accidental partial-charge doesn't sit there waiting to fire.
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
-// How much wheel-delta (px-ish) needs to accumulate at the edge before we
-// commit a swap. Bumped from 320 → 900 now that the progress bar gives the
-// user visual feedback — a higher bar means accidental flicks won't trigger.
-const WHEEL_THRESHOLD = 900
-// How long we lock out further triggers after firing — covers the 760ms
-// transition with a small buffer.
-const LOCK_MS = 1000
-// Touch swipe threshold (pixels of finger travel).
-const TOUCH_THRESHOLD = 140
-// If the user stops scrolling for this long, the charge starts draining back
-// to 0 so an accidental partial-charge doesn't sit there waiting to fire.
-const DECAY_IDLE_MS = 240
-// Fraction of remaining charge drained per animation frame after the idle
-// timeout. ~6% per frame ≈ full drain in ~25 frames (~400ms at 60Hz).
-const DECAY_RATE = 0.06
+const WHEEL_THRESHOLD = 450
+const LOCK_MS = 900
+const TOUCH_THRESHOLD = 100
+const DECAY_IDLE_MS = 200
+const DECAY_RATE = 0.08
 
-// Route order along the number line. Single source of truth for the swap
-// logic AND for the progress bar UI. Labels are used by the bar.
 export const ORDERED_PATHS = [
   { path: '/about',   x: -1, label: 'Process' },
   { path: '/',        x: 0,  label: 'Home' },
   { path: '/contact', x: 1,  label: 'Contact' },
 ]
 
-// Module-level reactive state. Exposed via useScrollState() so any component
-// (e.g. PageProgressBar) can subscribe without having to be the host that
-// mounts the wheel listeners.
-const scrollCharge = ref(0)   // -1..1 signed; sign = direction (-1 left, +1 right)
+const scrollCharge = ref(0)
 const scrollLocked = ref(false)
+
+// Registered step host (at most one — only the current page can host steps).
+// Shape: { count: number, getCurrentStep: () => number, setStep: (n) => void }
+const stepHost = ref(null)
 
 export function useScrollState() {
   return { scrollCharge, scrollLocked }
 }
 
-function neighborPath(currentX, direction /* -1 or +1 */) {
+/** Page mounts a step deck. Returns an unregister fn for onBeforeUnmount. */
+export function registerStepHost(host) {
+  stepHost.value = host
+  return () => {
+    if (stepHost.value === host) stepHost.value = null
+  }
+}
+
+function neighborPath(currentX, direction) {
   const targetX = currentX + direction
   return ORDERED_PATHS.find((r) => r.x === targetX)?.path ?? null
 }
@@ -71,12 +69,21 @@ function atBottom() {
   return scrollTop + viewport >= docHeight - 2
 }
 
+// Returns 'step' when the host can advance/retreat in `direction`, else 'page'.
+function intentFor(direction) {
+  const host = stepHost.value
+  if (!host) return 'page'
+  const next = host.getCurrentStep() + direction
+  return (next >= 0 && next < host.count) ? 'step' : 'page'
+}
+
 export function useScrollNav() {
   const route = useRoute()
   const router = useRouter()
 
   let accum = 0
   let lastDir = 0
+  let lastIntent = 'page'
   let lastWheelTs = 0
   let decayRaf = 0
   let touchStartY = 0
@@ -86,28 +93,39 @@ export function useScrollNav() {
     return matchMedia('(prefers-reduced-motion: reduce)').matches
   }
 
-  // Single mutator for accum so the reactive charge ratio stays in sync.
-  function setAccum(value) {
+  // Single mutator so charge state always agrees with accum + intent.
+  function setAccum(value, intent = lastIntent) {
     accum = value
     const ratio = Math.max(-1, Math.min(1, accum / WHEEL_THRESHOLD))
-    scrollCharge.value = ratio
+    // PageProgressBar only cares about page-intent charge — during step
+    // charging we keep the page bar dark to avoid misleading feedback.
+    scrollCharge.value = intent === 'page' ? ratio : 0
   }
 
-  function trigger(direction) {
+  function triggerPage(direction) {
     if (scrollLocked.value) return
     const currentX = route.meta?.x ?? 0
     const target = neighborPath(currentX, direction)
-    if (!target) return // edge of the line — let normal scroll continue
+    if (!target) return
     scrollLocked.value = true
-    setAccum(0)
+    setAccum(0, 'page')
     cancelAnimationFrame(decayRaf)
     router.push(target)
     setTimeout(() => { scrollLocked.value = false }, LOCK_MS)
   }
 
-  // After the user stops scrolling for DECAY_IDLE_MS, drain the charge back
-  // to 0 by DECAY_RATE per frame. New wheel input resets lastWheelTs, which
-  // pauses the drain.
+  function triggerStep(direction) {
+    const host = stepHost.value
+    if (!host || scrollLocked.value) return
+    const next = host.getCurrentStep() + direction
+    if (next < 0 || next >= host.count) return
+    scrollLocked.value = true
+    setAccum(0, 'step')
+    cancelAnimationFrame(decayRaf)
+    host.setStep(next)
+    setTimeout(() => { scrollLocked.value = false }, LOCK_MS)
+  }
+
   function scheduleDecay() {
     cancelAnimationFrame(decayRaf)
     const tick = () => {
@@ -134,32 +152,39 @@ export function useScrollNav() {
 
     const wantsRight = dy > 0
     const wantsLeft = dy < 0
-
-    // Only intercept at the relevant edge. Otherwise let the browser scroll
-    // normally and reset any pending charge.
-    const edgeReady =
-      (wantsRight && atBottom()) || (wantsLeft && atTop())
-    if (!edgeReady) {
-      if (accum !== 0) setAccum(0)
-      lastDir = 0
-      return
-    }
-
-    // Reverse direction resets the accumulator — no leftover charge from a
-    // change of mind.
     const dir = wantsRight ? 1 : -1
-    if (dir !== lastDir) {
-      setAccum(0)
-      lastDir = dir
+    const intent = intentFor(dir)
+
+    // Edge check: for PAGE intent we need to be at the document scroll edge
+    // (so internal scrolling in a long page isn't hijacked). STEP intent
+    // applies anywhere — the host page is rendering a deck, not normal
+    // scrolling content, so it always wants the wheel.
+    if (intent === 'page') {
+      const edgeReady =
+        (wantsRight && atBottom()) || (wantsLeft && atTop())
+      if (!edgeReady) {
+        if (accum !== 0) setAccum(0, 'page')
+        lastDir = 0
+        lastIntent = 'page'
+        return
+      }
     }
 
-    setAccum(accum + dy)
+    // Reverse direction OR intent change resets the accumulator.
+    if (dir !== lastDir || intent !== lastIntent) {
+      setAccum(0, intent)
+      lastDir = dir
+      lastIntent = intent
+    }
+
+    setAccum(accum + dy, intent)
     lastWheelTs = performance.now()
     scheduleDecay()
 
     if (Math.abs(accum) >= WHEEL_THRESHOLD) {
       e.preventDefault()
-      trigger(dir)
+      if (intent === 'step') triggerStep(dir)
+      else triggerPage(dir)
     }
   }
 
@@ -180,8 +205,15 @@ export function useScrollNav() {
     if (Math.abs(dy) < TOUCH_THRESHOLD) return
 
     const wantsRight = dy > 0
+    const dir = wantsRight ? 1 : -1
+    const intent = intentFor(dir)
+
+    if (intent === 'step') {
+      triggerStep(dir)
+      return
+    }
     if ((wantsRight && atBottom()) || (!wantsRight && atTop())) {
-      trigger(wantsRight ? 1 : -1)
+      triggerPage(dir)
     }
   }
 
