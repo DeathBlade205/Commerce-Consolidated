@@ -4,8 +4,13 @@
 // down falls through to the page-swap → Home. The Process page sits to the
 // LEFT of Home on the page-line, so "scroll down at the end" continues
 // rightward into Home.
+//
+// Step animation: the marker box (small) and body box (large) are persistent
+// slots that animate their horizontal positions on step change. When a step
+// flips the layout (marker side: left → right), both boxes slide across each
+// other simultaneously, visually swapping sides. Content inside each box
+// cross-fades in place.
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
-import ProcessRow from '../components/ProcessRow.vue'
 import { registerStepHost } from '../composables/useScrollNav.js'
 
 const processSteps = [
@@ -38,22 +43,14 @@ const processSteps = [
 const currentStep = ref(0)
 const previousStep = ref(0)
 
-// Direction of the step swap drives the slide transition name (mirrors the
-// page-swap naming in App.vue): going forward (step+1) reads as a left-slide;
-// going backward (step-1) as a right-slide.
-const slideName = computed(() =>
-  currentStep.value >= previousStep.value ? 'step-slide-left' : 'step-slide-right',
-)
+const currentSide = computed(() => processSteps[currentStep.value].side)
+const currentData = computed(() => processSteps[currentStep.value])
 
 function setStep(n) {
   previousStep.value = currentStep.value
   currentStep.value = n
 }
 
-// Register the step host SYNCHRONOUSLY during setup so the very first wheel
-// event on this page sees a non-null host. (Registering in onMounted left a
-// race window where the wheel could fire as 'page' intent and trigger a
-// premature page swap before the host appeared.)
 const unregister = registerStepHost({
   count: processSteps.length,
   getCurrentStep: () => currentStep.value,
@@ -88,14 +85,27 @@ onBeforeUnmount(() => {
       A studio for <em>considered</em> commerce.
     </h1>
 
-    <div class="step-stage">
-      <Transition :name="slideName">
-        <ProcessRow
-          :key="currentStep"
-          class="step-stage__row"
-          v-bind="processSteps[currentStep]"
-        />
-      </Transition>
+    <!-- Two persistent slots. `step-row--marker-{side}` swaps their absolute
+         `left` values; the CSS transition on `left` does the actual slide.
+         Content inside each slot cross-fades when the step number changes. -->
+    <div class="step-row" :class="`step-row--marker-${currentSide}`">
+      <div class="step-slot step-slot--marker">
+        <Transition name="step-fade">
+          <article :key="currentStep" class="step-card step-card--marker">
+            <p class="label step-card__label">Step {{ currentData.number }}</p>
+            <h3 class="step-card__title">{{ currentData.title }}</h3>
+          </article>
+        </Transition>
+      </div>
+
+      <div class="step-slot step-slot--body">
+        <Transition name="step-fade">
+          <article :key="currentStep" class="step-card step-card--body">
+            <p class="step-card__desc">{{ currentData.description }}</p>
+            <p class="label step-card__duration">{{ currentData.duration }}</p>
+          </article>
+        </Transition>
+      </div>
     </div>
   </main>
 </template>
@@ -109,8 +119,7 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   gap: 80px;
-  /* No document scroll — the wheel is consumed by step swaps via useScrollNav,
-     not by overflowing content. */
+  /* No document scroll — the wheel is consumed by step swaps via useScrollNav. */
   overflow: hidden;
 }
 
@@ -129,56 +138,116 @@ onBeforeUnmount(() => {
   color: var(--grey-300);
 }
 
-/* Stage that holds one ProcessRow at a time. Position context lets the
-   leaving row absolutely position over the entering row so they slide
-   together horizontally without vertical layout jumps. */
-.step-stage {
+/* Two slots, absolutely positioned. Their `left` value depends on the row
+   class (marker-left vs marker-right). CSS transition on `left` animates
+   the swap — both slots slide across each other in opposite directions. */
+.step-row {
   position: relative;
   flex: 1;
   min-height: 420px;
-}
-
-.step-stage__row {
+  margin: 0 auto;
   width: 100%;
 }
 
-/* Step swap transitions — mirror the page-swap slide style from App.vue.
-   "left" = next step sliding in from the right; "right" = previous step
-   sliding in from the left. */
-.step-slide-left-enter-active,
-.step-slide-right-enter-active,
-.step-slide-left-leave-active,
-.step-slide-right-leave-active {
-  transition:
-    transform 700ms cubic-bezier(0.4, 0, 0.6, 1),
-    opacity 540ms linear;
-  will-change: transform, opacity;
-}
-
-.step-slide-left-leave-active,
-.step-slide-right-leave-active {
+.step-slot {
   position: absolute;
   top: 0;
-  left: 0;
-  right: 0;
+  bottom: 0;
+  transition: left 700ms cubic-bezier(0.4, 0, 0.6, 1);
 }
 
-.step-slide-left-enter-from  { transform: translate3d(100%, 0, 0);  opacity: 0.4; }
-.step-slide-left-leave-to    { transform: translate3d(-100%, 0, 0); opacity: 0.4; }
-.step-slide-right-enter-from { transform: translate3d(-100%, 0, 0); opacity: 0.4; }
-.step-slide-right-leave-to   { transform: translate3d(100%, 0, 0);  opacity: 0.4; }
+.step-slot--marker {
+  width: 30%;
+}
+
+.step-slot--body {
+  width: 66%;
+}
+
+/* Marker-on-LEFT layout */
+.step-row--marker-left  .step-slot--marker { left: 0; }
+.step-row--marker-left  .step-slot--body   { left: 34%; }
+
+/* Marker-on-RIGHT layout (Step 2). Both slots animate to new lefts. */
+.step-row--marker-right .step-slot--marker { left: 70%; }
+.step-row--marker-right .step-slot--body   { left: 0; }
+
+/* Cards inside slots — bordered boxes, with content that cross-fades on
+   step change via the step-fade Transition. */
+.step-card {
+  position: absolute;
+  inset: 0;
+  border: 1px solid var(--hairline);
+  background: rgba(255, 255, 255, 0.012);
+  display: flex;
+  flex-direction: column;
+}
+
+.step-card--marker {
+  padding: 36px 32px;
+  gap: 20px;
+}
+
+.step-card--body {
+  padding: 40px 44px;
+  gap: 28px;
+}
+
+.step-card__label {
+  letter-spacing: 0.32em;
+  color: var(--grey-500);
+  margin: 0;
+}
+
+.step-card__title {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: clamp(28px, 3vw, 44px);
+  line-height: 1.05;
+  letter-spacing: -0.015em;
+  color: var(--grey-100);
+}
+
+.step-card__desc {
+  font-size: 15px;
+  line-height: 1.75;
+  color: var(--grey-300);
+  max-width: 56ch;
+  margin: 0;
+}
+
+.step-card__duration {
+  color: var(--grey-500);
+  margin: auto 0 0;
+}
+
+/* Content cross-fade — old card fades out, new fades in. Both stacked inside
+   the same slot via absolute positioning, so they overlay during the swap. */
+.step-fade-enter-active,
+.step-fade-leave-active {
+  transition: opacity 500ms ease, transform 500ms cubic-bezier(0.4, 0, 0.6, 1);
+}
+
+.step-fade-enter-from {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.step-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
+}
 
 @media (prefers-reduced-motion: reduce) {
-  .step-slide-left-enter-active,
-  .step-slide-left-leave-active,
-  .step-slide-right-enter-active,
-  .step-slide-right-leave-active {
+  .step-slot {
+    transition: none;
+  }
+  .step-fade-enter-active,
+  .step-fade-leave-active {
     transition: opacity 200ms ease;
   }
-  .step-slide-left-enter-from,
-  .step-slide-left-leave-to,
-  .step-slide-right-enter-from,
-  .step-slide-right-leave-to {
+  .step-fade-enter-from,
+  .step-fade-leave-to {
     transform: none;
   }
 }
@@ -188,8 +257,36 @@ onBeforeUnmount(() => {
     padding: 110px 22px 110px;
     gap: 40px;
   }
-  .step-stage {
-    min-height: 320px;
+
+  /* Mobile: stack slots vertically — marker on top regardless of side,
+     body below. No horizontal slide on small viewports (too cramped). */
+  .step-row {
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
   }
+
+  .step-slot {
+    position: relative;
+    width: 100%;
+    top: auto;
+    bottom: auto;
+    transition: none;
+  }
+
+  .step-row--marker-left  .step-slot--marker,
+  .step-row--marker-right .step-slot--marker { left: auto; order: 0; }
+  .step-row--marker-left  .step-slot--body,
+  .step-row--marker-right .step-slot--body   { left: auto; order: 1; }
+
+  .step-card {
+    position: relative;
+    inset: auto;
+  }
+
+  .step-card--marker { padding: 24px; }
+  .step-card--body   { padding: 28px; min-height: 220px; }
+  .step-card__desc   { font-size: 14px; }
 }
 </style>

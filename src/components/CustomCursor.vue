@@ -26,6 +26,9 @@ let targetX = -200
 let targetY = -200
 let rafId = 0
 
+const INTERACTIVE_SELECTOR =
+  'a, button, [role="button"], input, textarea, select, label'
+
 function onMove(e) {
   targetX = e.clientX
   targetY = e.clientY
@@ -33,19 +36,16 @@ function onMove(e) {
   dotX.value = targetX
   dotY.value = targetY
   if (!visible.value) visible.value = true
+  // Hover detection on every mousemove. Using mouseover/mouseout fires for
+  // every descendant boundary cross, which flickers the hover state off when
+  // moving between children of an interactive element (e.g. across the
+  // spans inside a link). Sampling on mousemove gives a stable read.
+  hovering.value = !!e.target?.closest?.(INTERACTIVE_SELECTOR)
 }
 
 function onLeave() {
   visible.value = false
-}
-
-function onOver(e) {
-  if (e.target.closest?.('a, button, [role="button"], input, textarea, select, label'))
-    hovering.value = true
-}
-function onOut(e) {
-  if (e.target.closest?.('a, button, [role="button"], input, textarea, select, label'))
-    hovering.value = false
+  hovering.value = false
 }
 
 function tick() {
@@ -59,8 +59,6 @@ function tick() {
 onMounted(() => {
   if (isTouch) return
   window.addEventListener('mousemove', onMove)
-  document.body.addEventListener('mouseover', onOver)
-  document.body.addEventListener('mouseout', onOut)
   document.documentElement.addEventListener('mouseleave', onLeave)
   rafId = requestAnimationFrame(tick)
 })
@@ -68,8 +66,6 @@ onMounted(() => {
 onBeforeUnmount(() => {
   cancelAnimationFrame(rafId)
   window.removeEventListener('mousemove', onMove)
-  document.body.removeEventListener('mouseover', onOver)
-  document.body.removeEventListener('mouseout', onOut)
   document.documentElement.removeEventListener('mouseleave', onLeave)
 })
 </script>

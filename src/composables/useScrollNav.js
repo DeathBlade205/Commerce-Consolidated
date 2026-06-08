@@ -217,16 +217,36 @@ export function useScrollNav() {
     }
   }
 
+  // Arrow keys: Left/Right move between PAGES along the page-line.
+  // ArrowUp/ArrowDown are reserved for step hosts (the AboutView deck owns
+  // those keys for its internal step nav).
+  function onKey(e) {
+    if (scrollLocked.value) return
+    // Ignore key events when the user is typing in a form control.
+    const tag = e.target?.tagName
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || e.target?.isContentEditable) return
+
+    if (e.key === 'ArrowRight') {
+      e.preventDefault()
+      triggerPage(1)
+    } else if (e.key === 'ArrowLeft') {
+      e.preventDefault()
+      triggerPage(-1)
+    }
+  }
+
   onMounted(() => {
     window.addEventListener('wheel', onWheel, { passive: false })
     window.addEventListener('touchstart', onTouchStart, { passive: true })
     window.addEventListener('touchend', onTouchEnd, { passive: true })
+    window.addEventListener('keydown', onKey)
   })
 
   onBeforeUnmount(() => {
     window.removeEventListener('wheel', onWheel)
     window.removeEventListener('touchstart', onTouchStart)
     window.removeEventListener('touchend', onTouchEnd)
+    window.removeEventListener('keydown', onKey)
     cancelAnimationFrame(decayRaf)
   })
 }
