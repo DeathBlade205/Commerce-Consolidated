@@ -3,6 +3,7 @@ import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { RouterLink } from 'vue-router'
 import FlashlightReveal from '../components/FlashlightReveal.vue'
 import LogoMark from '../components/LogoMark.vue'
+import { hasFinePointer } from '../composables/useFinePointer.js'
 
 // `entered` flips from false → true on the next animation frame after mount.
 // Elements have their final visible state by default; while `entered` is false
@@ -15,10 +16,9 @@ const logoBreath = ref(false)
 let sweepRaf = 0
 let sweepCancelled = false
 
-const isTouch =
-  typeof window !== 'undefined' &&
-  ('ontouchstart' in window ||
-    (typeof navigator !== 'undefined' && (navigator.maxTouchPoints ?? 0) > 0))
+// No hover-capable pointer → no flashlight sweep (content is already fully
+// visible via FlashlightReveal's touch fallback).
+const isTouch = !hasFinePointer()
 
 function dispatchMove(x, y) {
   const ev = new MouseEvent('mousemove', {
@@ -169,7 +169,7 @@ onBeforeUnmount(() => {
          Contact on the right. Scrolling triggers the swap (see useScrollNav);
          clicking these links also works. -->
     <nav class="hero-nav enter enter--5" aria-label="Other pages">
-      <RouterLink to="/about" class="hero-nav__link hero-nav__link--left">
+      <RouterLink to="/process" class="hero-nav__link hero-nav__link--left">
         <FlashlightReveal :radius="220">
           <span class="hero-nav__inner">
             <span class="hero-nav__arrow" aria-hidden="true">←</span>
@@ -197,7 +197,10 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .home {
+  /* svh = small viewport height: the page never scrolls, so the mobile URL
+     bar never collapses — plain 100vh would push the bottom nav under it. */
   min-height: 100vh;
+  min-height: 100svh;
   position: relative;
   padding: 140px 64px 180px; /* bottom padding leaves room for hero-nav + meta strip */
   display: flex;

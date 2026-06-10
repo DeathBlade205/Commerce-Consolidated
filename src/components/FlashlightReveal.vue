@@ -1,5 +1,6 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { hasFinePointer } from '../composables/useFinePointer.js'
 
 defineProps({
   hidden: { type: Boolean, default: false },
@@ -8,12 +9,9 @@ defineProps({
 
 const brightRef = ref(null)
 
-// Synchronous detection so initial render avoids a flash of dim content on touch devices.
-const isTouch = ref(
-  typeof window !== 'undefined' &&
-  ('ontouchstart' in window ||
-    (typeof navigator !== 'undefined' && (navigator.maxTouchPoints ?? 0) > 0)),
-)
+// Synchronous detection so initial render avoids a flash of dim content on
+// touch devices. No hover-capable pointer → no flashlight; show everything.
+const isTouch = ref(!hasFinePointer())
 
 function onMouseMove(e) {
   const el = brightRef.value

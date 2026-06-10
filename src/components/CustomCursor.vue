@@ -1,5 +1,6 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { hasFinePointer } from '../composables/useFinePointer.js'
 
 // Two-layer cursor:
 //   • Dot snapped to the exact pointer position — this IS the cursor.
@@ -19,8 +20,9 @@ const dotY = ref(-200)
 const visible = ref(false)
 const hovering = ref(false)
 
-const isTouch =
-  'ontouchstart' in window || (navigator?.maxTouchPoints ?? 0) > 0
+// Render only for hover-capable fine pointers — matches the media query that
+// hides the native cursor in base.css, so we never hide one without the other.
+const isTouch = !hasFinePointer()
 
 let targetX = -200
 let targetY = -200

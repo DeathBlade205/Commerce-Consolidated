@@ -70,7 +70,8 @@ function navigate(path) {
 <style scoped>
 .page-progress {
   position: fixed;
-  bottom: 20px;
+  /* safe-area inset keeps the bars clear of the iOS home indicator */
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
   left: 50%;
   transform: translateX(-50%);
   z-index: 95;
@@ -90,7 +91,8 @@ function navigate(path) {
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  cursor: pointer;
+  /* No cursor override — base.css hides the native pointer site-wide and a
+     `cursor: pointer` here would resurrect it over the bars. */
   font-family: var(--font-mono);
 }
 
@@ -146,7 +148,7 @@ function navigate(path) {
 
 @media (max-width: 880px) {
   .page-progress {
-    bottom: 10px;
+    bottom: calc(10px + env(safe-area-inset-bottom, 0px));
     gap: 10px;
   }
   .page-progress__bar {

@@ -60,10 +60,18 @@ const unregister = registerStepHost({
 // Keyboard nav: ArrowDown / Space = next step, ArrowUp = previous step.
 // Mirrors the scroll-trigger step swap so the deck is keyboard-accessible.
 function onKey(e) {
+  // Leave Space/arrows alone when a control is focused (e.g. the progress
+  // bar buttons) or the user is typing — native activation wins there.
+  const tag = e.target?.tagName
+  if (tag === 'BUTTON' || tag === 'A' || tag === 'INPUT' || tag === 'TEXTAREA') return
+  if (e.target?.isContentEditable) return
+
   if (e.key === 'ArrowDown' || e.key === ' ') {
+    e.preventDefault()
     const next = Math.min(currentStep.value + 1, processSteps.length - 1)
     if (next !== currentStep.value) setStep(next)
   } else if (e.key === 'ArrowUp') {
+    e.preventDefault()
     const next = Math.max(currentStep.value - 1, 0)
     if (next !== currentStep.value) setStep(next)
   }
@@ -112,7 +120,9 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .process-page {
+  /* svh, not vh — see HomeView. The deck must fit the visible viewport. */
   min-height: 100vh;
+  min-height: 100svh;
   padding: 140px 48px 120px;
   max-width: 1200px;
   margin: 0 auto;
@@ -283,6 +293,14 @@ onBeforeUnmount(() => {
   .step-card {
     position: relative;
     inset: auto;
+  }
+
+  /* Cards are static in the stacked layout, so during the cross-fade the
+     leaving card would briefly double the column height. Take it out of
+     flow for the transition so the entering card lands in place. */
+  .step-fade-leave-active {
+    position: absolute;
+    inset: 0;
   }
 
   .step-card--marker { padding: 24px; }

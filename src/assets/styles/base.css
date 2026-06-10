@@ -23,18 +23,27 @@ html, body {
   font-family: var(--font-sans);
   font-weight: 300;
   overflow-x: hidden;
+  /* Swipe-down at the page top must charge the page swap, not trigger the
+     browser's pull-to-refresh / rubber-band. */
+  overscroll-behavior-y: none;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  /* Native pointer hidden — the crosshair reticle in CustomCursor.vue is the
-     pointer. Pointer-device users get the custom one; touch users don't have
-     a system cursor to begin with so this is a no-op for them. */
-  cursor: none;
 }
 
-/* Every interactive element gets `cursor: none` too — otherwise the system
-   pointer flickers back on hover. */
-a, button, [role="button"], input, textarea, select, label {
-  cursor: none;
+/* Native pointer hidden — the dot + ring in CustomCursor.vue is the pointer.
+   Gated to hover-capable fine-pointer devices so touchscreen laptops and
+   tablets with no mouse attached aren't left with no cursor at all. The same
+   media query drives CustomCursor's render decision (useFinePointer.js). */
+@media (hover: hover) and (pointer: fine) {
+  html, body {
+    cursor: none;
+  }
+
+  /* Every interactive element gets `cursor: none` too — otherwise the system
+     pointer flickers back on hover. */
+  a, button, [role="button"], input, textarea, select, label {
+    cursor: none;
+  }
 }
 
 a {

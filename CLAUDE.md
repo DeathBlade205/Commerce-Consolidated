@@ -5,168 +5,332 @@ Website for **Commerce Consolidated**, a small Sydney digital agency offering We
 
 **Stack:** Vue 3 (Composition API `<script setup>`) + Vite + vue-router 4 + pnpm. No UI library, no Tailwind — all scoped CSS per component.
 
-**Run dev:** `pnpm dev`
+**Run dev:** `pnpm dev` (served at `http://127.0.0.1:5174`)
 **Build:** `pnpm build`
 
-## File structure
+---
+
+## Design vision (capture before changing anything)
+
+The site is built around a **single conceptual mechanic**: scrolling moves you horizontally along a "page-line" of three pages, with full slide animations between them. Internally the Process page is a 3-step deck that you scroll through before the next scroll continues onto the next page.
+
+The aesthetic is **noir-typographic with a flashlight metaphor**. Text sits at near-invisible greys by default; a soft white "flashlight" zone follows the cursor and reveals brighter text where it passes. Combined with the custom crosshair-like cursor (small white dot + 40px trailing ring), the page reads as something the user *uncovers* rather than reads.
+
+User intent (from conversation):
+- Restrained, high-craft, studio-grade — not flashy agency
+- Founded **2026** (MMXXVI)
+- Bilingual EN / 中 (UI-only toggle today; real i18n later)
+- "Do not overload area with text or information" — strip clutter aggressively
+- Animations: **threshold-triggered, full-play** — never gradual / scroll-position-tied
+- Logo is placeholder ("I'll work on logo later")
+
+---
+
+## Page-line model — the single source of architecture
+
+Three pages live on a horizontal number line via `route.meta.x`:
+
+```
+  -1            0              1
+[Process] ← [Home] → [Contact]
+```
+
+- `meta.x` drives the slide direction in `App.vue` (`slide-left` when going right along the line, `slide-right` when going left)
+- `useScrollNav` reads the current `meta.x` and the direction of scroll/key to pick the neighbour page
+- The same line governs ArrowLeft/ArrowRight keyboard nav and the bottom `PageProgressBar`
+- Three vertical "pages" + ProcessView's internal 3-step deck = effectively a 5-step linear journey:
+  `Process step1 → step2 → step3 → Home → Contact`
+
+Routes: `/process` (was `/about` — old path 301s via a router redirect), `/`, `/contact`, plus a catch-all that redirects unknown paths to `/`. Deep-link refresh on static hosts is covered by `dist/404.html` (a copy of `index.html` emitted by the `spa-404-fallback` plugin in `vite.config.js`) and `vercel.json` rewrites.
+
+When extending: any new route MUST have a `meta.x` integer, and `ORDERED_PATHS` in `useScrollNav.js` MUST be updated in sync.
+
+---
+
+## File structure (current)
+
 ```
 src/
-  main.js                  # App entry — mounts Vue, imports router + CSS, registers v-reveal directive
-  App.vue                  # Root: CustomCursor, GrainOverlay, CornerMarks, NavBar, RouterView. Hosts directional slide transition (slide-left / slide-right) driven by route meta.x — Process sits to the LEFT of Home (x=-1), Contact to the RIGHT (x=1). Calls useScrollNav() so wheel/touch deltas trigger page swaps at scroll edges.
-  router/index.js          # Routes with meta.x: / → Home (0), /about → Process (-1), /contact → Contact (1). meta.x drives the slide direction.
+  main.js                          # App entry — mounts Vue, imports router + CSS, registers v-reveal directive
+  App.vue                          # Root composition: CustomCursor, GrainOverlay, CornerMarks, NavBar,
+                                   #   PageProgressBar, RouterView wrapped in a directional slide Transition.
+                                   #   Calls useScrollNav() to attach wheel/touch/key listeners globally.
+  router/index.js                  # 3 routes, each with meta.x (Process -1, Home 0, Contact 1),
+                                   #   plus /about → /process redirect and a catch-all → /.
+                                   #   scrollBehavior returns top:0 (we don't actually scroll the doc).
   composables/
-    useScrollNav.js        # Wheel + touch listener. Accumulates delta at the scroll edge and fires router.push to the left/right neighbor route once threshold (~320px wheel, 90px swipe) is crossed. Locks for 900ms during the transition so inertia bursts don't chain swaps. Disabled under prefers-reduced-motion.
+    useScrollNav.js                # ★ Central nav engine. See "Scroll/keyboard navigation" below.
+    useFinePointer.js              # hasFinePointer() — (hover:hover)+(pointer:fine) media check.
+                                   #   Single source of truth for cursor/flashlight device gating.
   directives/
-    reveal.js              # v-reveal — shared IntersectionObserver. Adds `is-visible` when element scrolls into view. Optional binding: { delay: ms } for per-item stagger.
+    reveal.js                      # v-reveal — IntersectionObserver-based scroll reveal. Used in ContactView.
+                                   #   Adds .reveal + .reveal--from-{up,left,right} classes that animate in.
   assets/styles/
-    base.css               # CSS custom properties + reset + body styles
-    main.css               # Global utility classes (.label, .label--lg, .serif)
+    base.css                       # Custom props, reset, body styles. cursor:none gated to
+                                   #   (hover:hover)+(pointer:fine) devices; overscroll-behavior-y none.
+    main.css                       # .label, .label--lg, .serif; .reveal transition classes for v-reveal.
   views/
-    HomeView.vue           # Landing page — flashlight hero only
-    AboutView.vue          # Practice page — services, case studies, process, clients, stats
-    ContactView.vue        # Contact page — email blocks, address, social links, footer
+    HomeView.vue                   # Landing — title block + logo + bottom corner nav callouts.
+    ProcessView.vue                # Process — 3-step slide deck. Registers as step host with useScrollNav.
+    ContactView.vue                # Contact — section label, heading, intro, contact grid (4 blocks).
   components/
-    NavBar.vue             # Fixed top nav, mix-blend-mode: difference
-    FlashlightReveal.vue   # Slot-based mouse-tracked radial mask reveal. `hidden` prop omits dim base layer (content only visible inside flashlight). On touch devices, renders content fully visible with no mask.
-    LogoMark.vue           # SVG "CC" monogram in outlined square — used inside hidden FlashlightReveal on Home
-    BackgroundField.vue    # Canvas 2D background layer. **No longer used on Home** (removed in favour of the minimal Swiss/typographic aesthetic — just grain + corner brackets). File kept for reference / possible future use on other views.
-    CustomCursor.vue       # 6px dot cursor, expands to 32px on links/buttons
-    GrainOverlay.vue       # SVG fractalNoise grain, fixed, mix-blend-mode: overlay, z-index 1
-    CornerMarks.vue        # Four fixed SVG corner brackets, z-index 200
-    ServiceRow.vue         # 4-col grid row: number / title / description / deliverables list
-    CaseStudyCard.vue      # Card with client, discipline, summary, year, "View case →" link
-    ProcessStep.vue        # Single step: number, title, duration, description
+    NavBar.vue                     # Fixed top nav: CC LogoMark (compact) + sliding EN/中 language switch.
+    CustomCursor.vue               # Dot + trailing ring. Native cursor hidden site-wide.
+    PageProgressBar.vue            # Fixed bottom-centre. 3 horizontal bars + labels. Click to nav.
+                                   #   Current page = wider + brighter. Neighbour bar charges as user scrolls.
+    PageEdgeHint.vue               # Big "scroll up/down → [Label]" callout. Only used in ContactView (top).
+    FlashlightReveal.vue           # Slot wrapper. Dim base + bright layer masked by radial gradient at cursor.
+                                   #   `hidden` prop omits dim base (used for logo on Home).
+    LogoMark.vue                   # SVG CC monogram. `compact` prop strips dashed midline + EST·MMXXVI caption.
+    GrainOverlay.vue               # Fixed SVG fractalNoise grain, mix-blend-mode: overlay.
+    CornerMarks.vue                # Four fixed L-shaped corner brackets.
 ```
+
+### Orphaned files (kept for now, no references)
+`ProcessRow.vue`, `ProcessStep.vue`, `ServiceRow.vue`, `CaseStudyCard.vue`, `BackgroundField.vue` — leftover from earlier iterations of the Process page. Safe to delete if not bringing back the services / case studies / clients / stats sections.
+
+---
+
+## Scroll/keyboard navigation (`useScrollNav.js`) — read this carefully
+
+**Constants** (tune here, not at call sites):
+- `WHEEL_THRESHOLD = 450` — wheel-delta needed to commit a swap
+- `LOCK_MS = 900` — lockout window after a swap
+- `TOUCH_THRESHOLD = 100` — finger-travel px for swipe swap
+- `DECAY_IDLE_MS = 200` — idle time before charge starts draining
+- `DECAY_RATE = 0.08` — fraction drained per RAF frame after idle
+
+**State** (module-level reactive refs, NOT instance-scoped):
+- `scrollCharge: Ref<number>` — signed -1..1 ratio of accumulated charge / threshold. **Only updated when intent is `page`** (so PageProgressBar doesn't fill during step charging).
+- `scrollLocked: Ref<boolean>` — true during the swap animation window.
+- `stepHost: Ref<host | null>` — at most one. The page that owns the wheel for internal step nav.
+
+**Intent model** — the wheel handler asks `intentFor(direction)`:
+- No step host registered → `'page'`
+- Step host registered AND `getCurrentStep() + direction` is within `[0, count)` → `'step'`
+- Step host registered AND that would overflow → `'page'` (fall through to page swap)
+
+Page intent additionally requires `atTop()` or `atBottom()` (so a long page's internal scroll isn't hijacked). Step intent doesn't — the host page has no scroll, the wheel always belongs to the host.
+
+**Step host API** — pages call `registerStepHost(host)`:
+```js
+{
+  count: number,                  // total steps in the deck
+  getCurrentStep: () => number,   // explicit getter — DO NOT pass a ref, see "Known traps"
+  setStep: (n: number) => void,   // callback when nav advances/retreats
+}
+```
+Returns an unregister fn. Pages must register **synchronously in setup** (NOT in onMounted) — see "Known traps."
+
+**Keyboard:**
+- `ArrowLeft` / `ArrowRight` — page nav (always)
+- `ArrowUp` / `ArrowDown` / `Space` — owned by step host if registered (handled by ProcessView's own listener)
+- Suppressed when target is `INPUT`, `TEXTAREA`, or contenteditable
+
+---
+
+## Views
+
+### HomeView (`/`) — the landing
+Single viewport hero. No document scroll (`overflow: hidden`). Layout:
+
+```
+                                            CC
+[ COMMERCE                          ┊       ┌─┐
+  CONSOLIDATED              divider ┊       │ │   <-- 220px logo
+                                    ┊       └─┘
+  Digital practice. Web, brand,
+  marketing.
+  use cursor to look around                            ]
+
+  ←  PROCESS                              CONTACT  →
+     scroll up                          scroll down
+```
+
+- `.hero-row` is a single flex row: `.hero-stack` (title + subtitle + hint), `.hero-divider` (1px × 240px), `.hero-logo`. `align-items: center` puts everything on one Y axis — no `position: absolute` games.
+- Title is two flex-column lines, both left-aligned (no staircase indent — user explicitly aligned them).
+- Subtitle and hint both crushed to `rgba(255,255,255,0.08)` dim — only readable when the flashlight is over them.
+- Logo is `LogoMark size=220` wrapped in `<FlashlightReveal hidden>` — fully invisible until the cursor passes. Has one-shot `flourish` on first load, then continuous `breath` cycle.
+- Bottom corner callouts (`← PROCESS` / `CONTACT →`) at `clamp(22px, 2.4vw, 34px)` with small `SCROLL UP` / `SCROLL DOWN` cues underneath. These are real RouterLinks too.
+
+User instructed: **removed** the eyebrow strap (`DIGITAL PRACTICE · SYDNEY · EST 2026`), the long mission paragraph, and the bottom meta strip (`Currently taking briefs` / Sydney coords) — all "clutter."
+
+### ProcessView (`/process`) — Process, the 3-step deck
+**This is NOT a long scrollable page.** It's a fixed-viewport step deck. `overflow: hidden`, content fits in one viewport.
+
+Layout: heading on top, then a `.step-row` with two absolute-positioned slots:
+- `.step-slot--marker` (30% wide) — Step number + title in a bordered card
+- `.step-slot--body` (66% wide) — Description + duration in a bordered card
+
+The `step-row--marker-{left|right}` class controls the `left:` value of both slots. CSS `transition: left 700ms` animates the swap. **On step change, the marker box slides one way and the body box slides the other way — they appear to switch sides.** Content inside each card cross-fades via `<Transition name="step-fade">` keyed by `currentStep`.
+
+Steps:
+- Step 1 (Brief) — `side: 'left'` (marker left, body right)
+- Step 2 (Design) — `side: 'right'` (marker right, body left)
+- Step 3 (Build & Launch) — `side: 'left'`
+
+ProcessView calls `registerStepHost` **synchronously in setup**, providing a getter `() => currentStep.value` (NOT the ref itself — see traps). It also installs its own keydown listener for ArrowUp / ArrowDown / Space for keyboard step nav (skipped when a button/link/input has focus, so native activation wins).
+
+Mobile (`<880px`) collapses the row to a vertical stack — slots become static, side-swap transitions disabled. The `step-fade` leave card is absolutely positioned there so the cross-fade doesn't double the column height mid-transition.
+
+### ContactView (`/contact`)
+- `PageEdgeHint` at the top — `direction="up"`, `to="/"`, label `Home`. Clickable; reinforces that scroll-up returns Home.
+- Section label, big serif heading ("Tell us how you'll *change* the world."), intro paragraph.
+- Contact grid with 4 blocks: New Business email, Studio address, Press email, Elsewhere (WeChat / X / Instagram / LinkedIn / Email icons).
+- Footer copyright line.
+
+Still uses the document scroll for content (sections are tall). `useScrollNav` detects `atTop()` for the scroll-up-to-Home swap.
+
+---
+
+## Components
+
+### `CustomCursor.vue` — the cursor
+Native pointer hidden via `cursor: none` in `base.css` — applied to html, body, and all interactive elements, but **only inside `@media (hover: hover) and (pointer: fine)`**. The same condition (via `hasFinePointer()` in `useFinePointer.js`) decides whether CustomCursor renders, so CSS and JS can never disagree (a touchscreen laptop must not end up with no cursor at all).
+
+Two layers:
+- **`.cursor-dot`** — 6px solid white circle, snapped to exact pointer position (no easing). Grows to 12px on hover over interactive elements. `z-index: 9999`.
+- **`.cursor-ring`** — 40px outline circle, trails the dot via critically-damped lerp (`k = 0.22` per frame). Tightens to 22px and brightens on hover. `z-index: 9998`.
+
+Both use `mix-blend-mode: difference` so they invert against any background.
+
+**Hover detection** — per-`mousemove`, not `mouseover/mouseout`. The handler checks `e.target.closest('a, button, [role="button"], input, textarea, select, label')` on every move. This avoids the bubbling-flicker bug where moving between children of a link toggled the hover state off.
+
+Devices without a hover-capable fine pointer render nothing (no pointer to indicate).
+
+### `NavBar.vue` — fixed top
+Left: compact `LogoMark size=42` linking to `/`. Right: sliding EN / 中 language switch — both segments visible at all times; the selected one flex-grows and fills with the bright pill background; the other shrinks to a 30px chip. Flex transition (420ms) animates the swap. Currently UI-only (no real i18n).
+
+User explicitly **removed** the `PROCESS` / `CONTACT` links from the top nav per "already at the bottom, redundant at top."
+
+### `PageProgressBar.vue` — fixed bottom centre
+Three horizontal bars (Process / Home / Contact), each with a small label underneath. Click any bar to navigate directly to that page.
+- Current page: 96px wide bar at 55% opacity, label at `--grey-100`
+- Neighbour bars: 56px wide at 35% opacity, labels at `--grey-300`
+- During scroll-charge toward a neighbour page, that neighbour bar fills with a bright overlay (scale-x from the side adjacent to the current page)
+- `scrollCharge` from useScrollNav drives the fill — **only updates during page intent**, not step intent (intentional: we don't want to mislead users on Process)
+- `transition: transform 70ms linear` on the fill — keep it 1:1 with input rather than easing
+
+### `PageEdgeHint.vue`
+Big `clamp(22px, 2.4vw, 34px)` directional callout + small "scroll up/down" cue. Used at the top of ContactView for `↑ HOME / scroll up`. Was also at the bottom of AboutView before that view became a step deck.
+
+### `FlashlightReveal.vue` — the dim/bright pair
+Slot-based. Renders two stacked layers:
+- `.dim` (base, no mask) — defaults to `--grey-500`, can be overridden per-instance via `:deep(.layer.dim) { color: ... }`
+- `.bright` (white, masked) — `mask-image: radial-gradient(circle var(--radius) at var(--x) var(--y), …)`. `--x` / `--y` are set on `mousemove` via `el.style.setProperty`.
+
+Props:
+- `hidden: boolean` — omit the dim base. Content is fully invisible until the flashlight reaches it. Used for the logo.
+- `radius: number` — pixel radius of the bright reveal zone (default 220).
+
+**Naming gotcha — `.reveal` is a global directive class.** The reveal directive uses `.reveal` + `.reveal.is-visible` (in `main.css`) which sets `opacity: 0` until visible. `FlashlightReveal`'s wrapper class is intentionally `.fl-root` (was `.reveal` originally, which silently hid all flashlight content). **Never** name any new class `.reveal` in component CSS.
+
+### `LogoMark.vue`
+SVG CC monogram in an outlined square. `compact` prop strips the dashed midline + `EST · MMXXVI` caption (for use in the nav where the caption is sub-pixel noise). User said the logo is placeholder — they'll redo it later.
+
+### `GrainOverlay.vue` / `CornerMarks.vue`
+Atmospheric chrome. Fixed-position, low-opacity. Don't touch unless you want the page to feel different.
+
+---
 
 ## Design system
 
 ### CSS custom properties (`base.css`)
 ```css
---bg: #0a0a0a           /* near-black page background */
---grey-100: #f5f5f5     /* primary text / headings */
---grey-300: #a8a8a8     /* secondary text, italic serif accents */
---grey-500: #555555     /* muted text, labels, section markers */
---grey-700: #2a2a2a     /* hairlines, corner marks, dim serif */
---hairline: rgba(255,255,255,0.08)  /* subtle dividers */
+--bg: #0a0a0a              /* near-black page background */
+--grey-100: #f5f5f5        /* primary text / headings */
+--grey-300: #a8a8a8        /* secondary text, italic serif accents */
+--grey-500: #555555        /* muted text, labels, section markers */
+--grey-700: #2a2a2a        /* hairlines, corner marks */
+--hairline: rgba(255,255,255,0.08)
 --font-serif: 'Instrument Serif', Georgia, serif
---font-sans: 'Geist', system-ui, sans-serif
---font-mono: 'Geist Mono', ui-monospace, ...   /* squared/geometric — used for Home title + mission */
+--font-sans:  'Geist', system-ui, sans-serif
+--font-mono:  'Geist Mono', ui-monospace, …  /* squared/geometric — Home title, mono labels */
 ```
 
-### Global utility classes (`main.css`)
-- `.label` — 10px, sans, 0.28em tracking, uppercase, `--grey-500`
-- `.label--lg` — same but 11px, 0.32em tracking
-- `.serif` — font-family serif, weight 400
-- `.reveal` / `.reveal.is-visible` — scroll-reveal pair used by `v-reveal`. Element starts at `opacity: 0; translateY(28px)` and transitions in over 900ms with optional `--reveal-delay`. Respects `prefers-reduced-motion`.
-
-### Typography pattern
-- **Display headings:** `font-family: var(--font-serif)`, `clamp()` sizes, `letter-spacing: -0.015em` to `-0.02em`
-- **Italic emphasis:** `<em>` inside serif headings renders italic + `--grey-300`
-- **Body text:** 13–16px sans, `--grey-300`, `line-height: 1.7–1.8`
-- **Section labels:** `.label.label--lg` prefixed with `—` dash (e.g. `— Services`)
-- **`cursor: none`** on html/body — custom cursor handles pointer globally
+### Global utilities (`main.css`)
+- `.label` — 10px sans, 0.28em tracking, uppercase, `--grey-500`
+- `.label--lg` — 11px, 0.32em tracking
+- `.serif` — `font-family: var(--font-serif)`, weight 400
+- `.reveal` / `.reveal--from-{up,left,right}` / `.reveal.is-visible` — directive transition classes
 
 ### Layout
-- **Nav:** `position: fixed`, `padding: 32px 48px`, `mix-blend-mode: difference` (inverts against page)
-- **Page padding:** `padding: 140px 48px 80px` (top clears fixed nav), mobile `120px 24px 60px`
+- **Nav:** fixed, `padding: 32px 48px`, `mix-blend-mode: difference`
+- **Page padding:** `padding: 140px 48px ...` (top clears fixed nav)
 - **Max width:** `max-width: 1200px; margin: 0 auto` on view containers
-- **Section spacing:** `margin-bottom: 120px` per section, mobile `80px`
 - **Breakpoint:** `880px` (mobile)
+- **`cursor: none`** applies site-wide on fine-pointer devices — never add `cursor: pointer` in component CSS (it resurrects the native pointer over that element)
+- **Viewport units:** full-viewport pages (`.home`, `.process-page`) use `min-height: 100svh` with a `100vh` fallback — plain `100vh` pushes bottom UI under the mobile URL bar
+- **Safe areas:** `PageProgressBar` bottom offset includes `env(safe-area-inset-bottom)`; viewport meta has `viewport-fit=cover`
 
-## Views
+---
 
-### HomeView (`/`)
-Minimal centred hero. No background canvas — just the global grain overlay + corner marks. The `.home` is `display: flex` with `align-items: center` and `justify-content: center` so the composition sits in the middle of the viewport.
+## Conventions
+- All styles **scoped per component** (`<style scoped>`) except `.label`, `.label--lg`, `.serif`, `.reveal*`
+- `<script setup>` for everything — Composition API, plain JS, no TypeScript
+- Props via `defineProps()` with type + default
+- **No emojis** in code or comments unless explicitly requested
+- Comments: explain **why**, not what. One-liner over multi-line where possible.
+- `<em>` inside serif headings = italic + `--grey-300` (consistent pattern)
 
-**`.eyebrow`** — centred at the top with leading + trailing dash brackets.
+---
 
-**`.hero-stack`** — title + mission stacked vertically, container `align-items: center`.
-- **Title** — `COMMERCE` over `CONSOLIDATED`, both lines `text-align: center` so they share a vertical axis. Mono uppercase, weight 500, `letter-spacing: -0.02em`, `line-height: 1.06`. Wrapped in `FlashlightReveal` (dim at `--grey-500`, bright reveal to `--grey-100`).
-- **Mission** — staggered to the right of the centred title block by one `--stagger` step (`clamp(80px, 13vw, 200px)`). Smaller mono body with `max-width: 520px`. Wrapped in `FlashlightReveal`, with `:deep(.layer.dim)` lifting dim to `--grey-300`.
+## Known traps (read before changing useScrollNav)
 
-**`.logo-positioner` + `.logo`** — logo is absolutely positioned (`right: 8vw; top: 50%; translateY(-50%)`) so it doesn't pull the centred hero off-axis. The `LogoMark` is wrapped in `FlashlightReveal hidden` — fully invisible until the flashlight passes over it. One-shot `logo--flourish` on intro, continuous `logo--breath` after.
+1. **Step host must register synchronously in setup, NOT onMounted.**
+   The first wheel event after page-swap can fire before `onMounted` runs. If the host isn't registered yet, intent falls through to `'page'` and triggers an immediate (unwanted) page swap. ProcessView calls `registerStepHost(...)` at the top level of `<script setup>`.
 
-Under 880px: `.logo-positioner` drops back into flow under the mission (`position: static`), `--stagger` shrinks to `clamp(20px, 6vw, 36px)`, mission `align-self: stretch` so it wraps naturally instead of pinning right. Touch devices skip both the flashlight intro sweep and the dim/bright reveal (content renders at the bright color by default).
+2. **Pass `getCurrentStep: () => currentStep.value` — NOT `currentStep` directly.**
+   We used to pass the ref. Vue's proxy/auto-unwrap behaviour through plain-object property access caused inconsistent reads from inside `useScrollNav` (a non-component context). The getter is explicit and bulletproof.
 
-### AboutView (`/about`) — nav label: "Practice"
-Six sections in order:
-1. **Intro** — 2-col grid: heading left, 2 body paragraphs right (first has `.drop-cap`)
-2. **Services** — `ServiceRow` × 3: Web, Brand, Marketing
-3. **Selected Work** — `CaseStudyCard` × 4 in 2-col grid (**all placeholder**)
-4. **Engagement** — `ProcessStep` × 4: Brief, Design, Build, Handover
-5. **Clients** — serif names separated by hairline borders (**all placeholder**)
-6. **Stats** — 4-col grid of big serif numbers (**all placeholder**)
+3. **The `.reveal` class is reserved** (see FlashlightReveal section). Use `.fl-root` or another distinct name.
 
-### ContactView (`/contact`)
-- Large serif heading: "Tell us something *worth* making."
-- Intro paragraph (brief review cadence)
-- 2-col contact grid with 4 blocks: New Business email, Studio address, Press email, Elsewhere links
-- Footer: `© Commerce Consolidated MMXXVI · All rights reserved`
+4. **Hover detection must use `mousemove`, not `mouseover/mouseout`.**
+   Those events bubble from descendant boundary crosses, which flickers the cursor's hover state off when moving between children of a link. The fix in `CustomCursor.vue` samples `e.target.closest(INTERACTIVE_SELECTOR)` on every `mousemove`.
 
-## Components detail
+5. **`scrollCharge` only fills during `'page'` intent.** Don't fill it during step charging or the PageProgressBar will look like it's about to swap pages when it's actually about to swap steps. Mutator is `setAccum(value, intent)`.
 
-### Naming gotcha — `.reveal` is global
-The scroll-reveal directive uses the global class `.reveal` (in `main.css`) which sets `opacity: 0` until `.is-visible` is added. **Do not** use `.reveal` as a class name on any other component — `FlashlightReveal`'s wrapper is intentionally `.fl-root` to avoid hiding its content. Any new component that introduces a class named `reveal` will silently render invisible.
+6. **Each step swap fires once per threshold-cross and locks for `LOCK_MS`.** If you want chained swaps, increase the threshold rather than removing the lock — inertial wheel events would chain otherwise.
 
-### `FlashlightReveal.vue`
-Props: `hidden: boolean` (default false), `radius: number` (default 220)
-- Slot-based: any content (text, SVG, etc.) can be wrapped in the reveal effect
-- Renders two layers: `.dim` (grey-700, base) and `.bright` (white, masked), stacked absolutely
-- `.bright` uses CSS `mask-image: radial-gradient(circle var(--radius) at var(--x) var(--y))` — tracks mouse position to reveal bright layer
-- When `hidden=true`, the dim base is omitted entirely — content is fully invisible except where the flashlight passes (used for the logo on Home)
-- Mouse position set via `el.style.setProperty('--x', ...)` on `mousemove`
+7. **Home page has `overflow: hidden`** — `atTop()` and `atBottom()` both return true on it. That's intentional: any wheel direction can trigger a page swap from Home (up → Process, down → Contact).
 
-### `LogoMark.vue`
-Props: `size: number` (default 140)
-- Inline SVG: outlined square (98×98 viewBox 100), dashed horizontal midline, "CC" monogram (Geist Mono), "EST · MMXXVI" caption
-- Uses `currentColor` so the parent (typically inside `FlashlightReveal`) controls fill
+8. **The RouterView Transition must start as `'none'`.** vue-router resolves the initial URL asynchronously, so the first page is inserted AFTER the Transition's first render — with a slide name set, every fresh load / refresh plays a full slide-in from offscreen (this looked like the page "dying" on refresh). `App.vue` sets the real slide names in a `router.afterEach` that skips `from === START_LOCATION`.
 
-### `CustomCursor.vue`
-- Hidden on touch devices (`ontouchstart` check)
-- `translate(x, y)` via `:style` binding (no lag CSS)
-- Expands from 6px → 32px when hovering `a` or `button`
-- `mix-blend-mode: difference` — appears white on dark, dark on white
+9. **Device gating goes through `hasFinePointer()`** (`useFinePointer.js`), which matches the `@media (hover: hover) and (pointer: fine)` block in base.css. Don't reintroduce `ontouchstart`/`maxTouchPoints` checks — they classify touchscreen laptops as touch-only, which hid the custom cursor while CSS still hid the native one (no cursor at all).
 
-### `NavBar.vue`
-- Logo: `Commerce <em>Consolidated</em>` serif, links to `/`
-- Three links: Index (`/`), Practice (`/about`), Contact (`/contact`)
-- Active link gets full underline via `.router-link-active::after { width: 100% }`
-- `mix-blend-mode: difference` — nav stays visible over any background
+---
 
-### `ServiceRow.vue`
-Props: `number`, `title`, `description`, `deliverables: string[]`
-Grid: `64px | 200px | 1fr | 160px` (number / title / description / deliverables)
+## Open / future work
 
-### `CaseStudyCard.vue`
-Props: `client`, `discipline`, `summary`, `year`, `placeholder: boolean`
-Card has hover border highlight. "View case →" link currently points to `#`.
+- **i18n**: language toggle is UI-only. Wire to a real i18n library (vue-i18n) when content is ready.
+- **Logo**: current LogoMark is placeholder per user. They will redo it.
+- **Contact content**: emails, address, social hrefs are placeholder. Need real values.
+- **Step content**: copy in `processSteps` is decent draft but not finalised.
+- **Subtitle copy**: "Digital practice. Web, brand, marketing." was picked from a 3-option question. Easily swappable.
+- **Process page**: currently 3 steps — Brief / Design / Build & Launch. User chose to drop services / case studies / clients / stats. If they want them back, the orphaned components are still in the repo.
 
-### `ProcessStep.vue`
-(Not read — likely: `number`, `title`, `duration`, `description` props, stacked flex layout)
+---
 
-### `GrainOverlay.vue`
-Fixed SVG fractalNoise grain texture, `opacity: 0.5`, `mix-blend-mode: overlay`, `pointer-events: none`, `z-index: 1`
+## Conversation history — design decisions and "why"
 
-### `CornerMarks.vue`
-Four fixed SVG L-shaped corner brackets at viewport corners, `--grey-700`, `z-index: 200`
+These are the choices the user has explicitly made or vetoed. Don't re-litigate without reason.
 
-## What's placeholder — needs replacing with real client content
-| Location | What to replace |
+| Decision | Rationale |
 |---|---|
-| `AboutView.vue` — `caseStudies` array | Real client names, disciplines, summaries, years; wire up case study links |
-| `AboutView.vue` — `clients` array | Real client/brand names |
-| `AboutView.vue` — `stats` array | Accurate figures (engagements, sectors, avg weeks) |
-| `ContactView.vue` — `blocks` | Real email addresses, correct studio address, real social hrefs |
-| `CaseStudyCard.vue` — `view-link` `href` | Real case study URLs or route |
-| `HomeView.vue` — meta strip label | Update "Q3" availability as needed |
+| Mono font for hero title (not serif) | "mono nicer" (early iteration). Serif reserved for body emphasis / italic accents. |
+| Removed `BackgroundField` canvas | "doesnt look like it fits in the vibe." Just grain + corner brackets now. |
+| Page-line model with scroll-trigger swaps | "each swap triggered by scrolling, but not a gradual thing… plays the full animation… sliding across." |
+| Process to the LEFT of Home, Contact to the RIGHT | User's mental model: arrows point those directions on Home's bottom callouts. |
+| 3-step deck on Process (not scrollable sections) | "Cut everything except the 3 steps." Process is just the engagement steps now. |
+| Marker + body boxes slide in opposite directions on step change | "i want the little box to shift as well… slides the big box into the left, and its little box on right." Per-slot left-position animation. |
+| Custom cursor: dot + ring (not crosshair arms) | Crosshair arms "looks bad because of the plus." Just a dot with an outer ring. |
+| Native cursor hidden | "Hide it entirely" (vs keep visible). |
+| `PageProgressBar` (bottom centre, 3 bars) | User wanted a charge indicator + escape hatch (click to jump). "Have charge bars active on every page." |
+| Charge fill is linear, ~70ms transition | User: "make the scroll more linear, it feels like at the start it scrolls slowly and then quick at the end." |
+| Higher wheel threshold (was 320 → 900 → tuned to 450) | "increase the time to scroll to next/prev page" — give human-error buffer. |
+| Removed top-nav PROCESS / CONTACT links | "already at the bottom, redundant at top." |
+| Removed Home eyebrow + mission + meta strip | "adds clutter" / "not necessary" / "do not overload area with text or information." |
+| EN/中 as sliding switch (not toggle button) | User: "make it like a switch so whichever one is toggled is on the larger part of the switch and is highlighted." |
+| ArrowUp/Down + Space = step nav, ArrowLeft/Right = page nav | Logical axis match — horizontal keys for horizontal page-line, vertical keys for vertical step deck. |
 
-## Conventions to follow
-- All styles are **scoped per component** (`<style scoped>`) — no global classes except `.label`, `.label--lg`, `.serif` from `main.css`
-- Use `<script setup>` (Composition API) for all new components
-- Props defined with `defineProps()` — no TypeScript, plain JS objects
-- New views go in `src/views/`, new components in `src/components/`
-- Register new routes in `src/router/index.js`
-- `cursor: none` is global — never add `cursor: pointer` in component CSS
-- Serif font for display/headings, sans for labels/body
-- `<em>` inside headings = italic serif + `--grey-300` colour (consistent with existing pattern)
-- Section labels always: `<p class="label label--lg section-label">— Section Name</p>`
+When making changes, **preserve these choices** unless the user reverses them in conversation.

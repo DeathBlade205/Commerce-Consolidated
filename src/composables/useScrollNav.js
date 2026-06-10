@@ -27,13 +27,24 @@ const DECAY_IDLE_MS = 200
 const DECAY_RATE = 0.08
 
 export const ORDERED_PATHS = [
-  { path: '/about',   x: -1, label: 'Process' },
+  { path: '/process', x: -1, label: 'Process' },
   { path: '/',        x: 0,  label: 'Home' },
   { path: '/contact', x: 1,  label: 'Contact' },
 ]
 
 const scrollCharge = ref(0)
 const scrollLocked = ref(false)
+
+// Cached once — a MediaQueryList stays live, so .matches is always current.
+// Re-creating it inside every wheel event was wasted work on the hot path.
+const reducedMotionMQ =
+  typeof window !== 'undefined'
+    ? window.matchMedia('(prefers-reduced-motion: reduce)')
+    : null
+
+function reducedMotion() {
+  return !!reducedMotionMQ?.matches
+}
 
 // Registered step host (at most one — only the current page can host steps).
 // Shape: { count: number, getCurrentStep: () => number, setStep: (n) => void }
@@ -88,10 +99,6 @@ export function useScrollNav() {
   let decayRaf = 0
   let touchStartY = 0
   let touchStartX = 0
-
-  function reducedMotion() {
-    return matchMedia('(prefers-reduced-motion: reduce)').matches
-  }
 
   // Single mutator so charge state always agrees with accum + intent.
   function setAccum(value, intent = lastIntent) {

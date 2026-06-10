@@ -94,7 +94,6 @@ function setLang(value) {
   font-family: inherit;
   font-size: 11px;
   letter-spacing: 0.14em;
-  cursor: pointer;
   transition:
     flex 420ms cubic-bezier(0.65, 0, 0.35, 1),
     background 240ms cubic-bezier(0.65, 0, 0.35, 1),

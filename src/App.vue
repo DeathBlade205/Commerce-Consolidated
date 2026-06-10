@@ -1,6 +1,6 @@
 <script setup>
-import { ref, watch } from 'vue'
-import { useRoute, RouterView } from 'vue-router'
+import { ref } from 'vue'
+import { useRouter, RouterView, START_LOCATION } from 'vue-router'
 import NavBar from './components/NavBar.vue'
 import CustomCursor from './components/CustomCursor.vue'
 import GrainOverlay from './components/GrainOverlay.vue'
@@ -8,25 +8,27 @@ import CornerMarks from './components/CornerMarks.vue'
 import PageProgressBar from './components/PageProgressBar.vue'
 import { useScrollNav } from './composables/useScrollNav.js'
 
-const route = useRoute()
+const router = useRouter()
 
-// Direction of the upcoming page transition. The router-view watches `route`
-// and `transitionName` is set just before the swap fires. Pages are laid out
-// on a number line via `meta.x` (process=-1, home=0, contact=1):
+// Direction of the upcoming page transition. Pages are laid out on a number
+// line via `meta.x` (process=-1, home=0, contact=1):
 //   moving to a HIGHER x  → new page slides in from the RIGHT → name "slide-left"
 //   moving to a LOWER  x  → new page slides in from the LEFT  → name "slide-right"
 // (Named for the direction the OLD page moves, which matches CSS intuition.)
-const transitionName = ref('slide-left')
-let prevX = route.meta?.x ?? 0
+//
+// Starts as 'none' (no matching CSS — renders instantly). The router resolves
+// the initial URL asynchronously, so the first page is inserted AFTER the
+// Transition's first render and would otherwise play a full slide-in from
+// offscreen on every fresh load / refresh. afterEach runs before the render
+// flush, and `from === START_LOCATION` identifies exactly that first resolve.
+const transitionName = ref('none')
 
-watch(
-  () => route.fullPath,
-  () => {
-    const nextX = route.meta?.x ?? 0
-    transitionName.value = nextX > prevX ? 'slide-left' : 'slide-right'
-    prevX = nextX
-  },
-)
+router.afterEach((to, from) => {
+  if (from === START_LOCATION) return
+  const toX = to.meta?.x ?? 0
+  const fromX = from.meta?.x ?? 0
+  transitionName.value = toX > fromX ? 'slide-left' : 'slide-right'
+})
 
 useScrollNav()
 </script>

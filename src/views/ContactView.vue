@@ -253,6 +253,21 @@ const blocks = [
     padding: 120px 24px 60px;
   }
 
+  /* The desktop clamp bottoms out at 56px — still oversized on a phone. */
+  .heading {
+    font-size: clamp(40px, 12vw, 56px);
+    margin-bottom: 56px;
+  }
+
+  .intro {
+    margin-bottom: 56px;
+  }
+
+  .contact-serif {
+    font-size: 22px;
+    word-break: break-word; /* long placeholder emails overflow 320px screens */
+  }
+
   .contact-grid {
     grid-template-columns: 1fr;
     gap: 48px;
