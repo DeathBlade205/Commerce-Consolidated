@@ -1,20 +1,17 @@
 <script setup>
 // Page-load animation: a line-drawn bulb sketches itself in, charges with
-// light from the bottom up, flashes — then throws a wave outward. The black
-// shroud is masked away behind the wavefront, so the page underneath is
-// uncovered by the wave rather than faded in.
+// light from the bottom up, flashes — then throws a wave outward that
+// uncovers the page (the black shroud is erased behind the wavefront).
 //
-// Performance contract: everything that changes per-frame is compositor-only.
-// The wavefront (blurred bands + turbulence displacement + afterglow) is
-// rasterized ONCE at a fixed WAVE_BASE size, then animated purely with
-// transform: scale + opacity. The shroud is a plain masked solid — updating
-// its radial-gradient mask is the single per-frame paint, with no SVG filter
-// attached (the displaced wave band rides the edge and supplies the
-// organic look). Never re-attach filters to the shroud or size the wave via
-// width/height — that's what made the first version chop.
+// Performance contract: the shroud + wave are ONE 2D canvas. Per frame we do
+// a handful of fills and strokes — no CSS masks, no SVG filters, no blurs
+// (the glow is layered strokes at falling alpha; the organic edge is a
+// precomputed noise polygon). This was previously CSS mask + displacement
+// filters and it was unfixably janky on real GPUs — don't go back.
 //
-// Phases: charge (CSS-driven bulb choreography) → burst (JS rAF wave) →
-// finish (marks bootDone; App.vue unmounts us via v-if). A click skips ahead.
+// Phases: charge (CSS-driven bulb choreography over a black canvas) → burst
+// (rAF canvas wave) → finish (marks bootDone; App.vue unmounts us via v-if).
+// A click skips ahead.
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useScrollState } from '../composables/useScrollNav.js'
 import { markBootRevealDone } from '../composables/useBootReveal.js'
@@ -23,18 +20,37 @@ import { markBootRevealDone } from '../composables/useBootReveal.js'
 const CHARGE_MS = 1950
 const BURST_MS = 1900
 const FEATHER = 240 // soft width of the reveal edge, px
-// Raster size of the pre-rendered wavefront. It scales UP from here — the
-// extra softness from upscaling suits a wave losing definition as it grows.
-const WAVE_BASE = 1000
+const TAU = Math.PI * 2
+const BG = '#0a0a0a' // shroud colour — must match --bg
 
 const phase = ref('charge')
-const shroudRef = ref(null)
-const waveRef = ref(null)
+const canvasRef = ref(null)
 const { scrollLocked } = useScrollState()
 
+let ctx = null
+let vw = 0
+let vh = 0
+let dpr = 1
 let rafId = 0
 let timeouts = []
 const later = (fn, ms) => timeouts.push(setTimeout(fn, ms))
+
+// Smooth periodic radius noise (summed sines, random phases) — gives the
+// wavefront its lumpy coastline. Computed once; wraps seamlessly.
+const NOISE_N = 192
+const noise = new Float32Array(NOISE_N)
+{
+  const p1 = Math.random() * TAU
+  const p2 = Math.random() * TAU
+  const p3 = Math.random() * TAU
+  for (let i = 0; i < NOISE_N; i++) {
+    const a = (i / NOISE_N) * TAU
+    noise[i] =
+      Math.sin(3 * a + p1) * 0.5 +
+      Math.sin(5 * a + p2) * 0.32 +
+      Math.sin(8 * a + p3) * 0.18
+  }
+}
 
 // Sine ease-in-out: the swell gathers, travels at near-constant speed, and
 // settles — reads as a wave crossing the page, not a burst that dies early.
@@ -42,31 +58,117 @@ function easeInOutSine(t) {
   return -(Math.cos(Math.PI * t) - 1) / 2
 }
 
+function sizeCanvas() {
+  const canvas = canvasRef.value
+  if (!canvas) return
+  vw = window.innerWidth
+  vh = window.innerHeight
+  // Cap the backing resolution — the shroud is soft gradients and glow, so
+  // hidpi fidelity buys nothing and costs fill-rate.
+  dpr = Math.min(window.devicePixelRatio || 1, 1.5)
+  canvas.width = Math.round(vw * dpr)
+  canvas.height = Math.round(vh * dpr)
+  ctx = canvas.getContext('2d')
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+}
+
+function drawShroud() {
+  if (!ctx) return
+  ctx.globalCompositeOperation = 'source-over'
+  ctx.fillStyle = BG
+  ctx.fillRect(0, 0, vw, vh)
+}
+
+// Lumpy ring path around radius r. Amplitude grows with r — the wave gains
+// wavelength as it travels.
+function wavePath(cx, cy, r) {
+  const amp = 10 + r * 0.05
+  const path = new Path2D()
+  for (let i = 0; i <= NOISE_N; i++) {
+    const idx = i % NOISE_N
+    const a = (idx / NOISE_N) * TAU
+    const rad = Math.max(1, r + noise[idx] * amp)
+    const x = cx + Math.cos(a) * rad
+    const y = cy + Math.sin(a) * rad
+    if (i === 0) path.moveTo(x, y)
+    else path.lineTo(x, y)
+  }
+  path.closePath()
+  return path
+}
+
+function drawWave(r, t) {
+  const cx = vw / 2
+  const cy = vh / 2
+
+  drawShroud()
+
+  const path = wavePath(cx, cy, r)
+
+  // Carve the feathered hole: radial alpha ramp erased out of the shroud,
+  // bounded by the lumpy path so the reveal edge is organic too. The extra
+  // stops shape an S-curve so the falloff never bands.
+  const inner = Math.max(0, r - FEATHER)
+  const carve = ctx.createRadialGradient(cx, cy, inner, cx, cy, Math.max(1, r))
+  carve.addColorStop(0, 'rgba(0,0,0,1)')
+  carve.addColorStop(0.35, 'rgba(0,0,0,0.94)')
+  carve.addColorStop(0.6, 'rgba(0,0,0,0.74)')
+  carve.addColorStop(0.82, 'rgba(0,0,0,0.38)')
+  carve.addColorStop(1, 'rgba(0,0,0,0)')
+  ctx.globalCompositeOperation = 'destination-out'
+  ctx.fillStyle = carve
+  ctx.fill(path)
+
+  // Quick swell-in, slow decay — a wave losing energy, not a flash.
+  const energy = Math.min(1, t * 6) * (1 - t * t)
+  if (energy <= 0.01) return
+
+  // Tungsten afterglow pooling inside the revealed zone — the page emerges
+  // looking lit by the bulb rather than switched on.
+  ctx.globalCompositeOperation = 'source-over'
+  const agR = Math.max(1, r * 0.9)
+  const after = ctx.createRadialGradient(cx, cy, 0, cx, cy, agR)
+  after.addColorStop(0, `rgba(255,240,214,${0.07 * energy})`)
+  after.addColorStop(0.6, `rgba(255,240,214,${0.028 * energy})`)
+  after.addColorStop(1, 'rgba(255,240,214,0)')
+  ctx.fillStyle = after
+  ctx.beginPath()
+  ctx.arc(cx, cy, agR, 0, TAU)
+  ctx.fill()
+
+  // The crest: ONE wide stroke painted with a radial gradient, so the glow
+  // falls off continuously across the band — no layered-stroke banding.
+  // Warm peak on the crest, faint cool spill leading the wave. The gradient
+  // is radially perfect while the path is lumpy, so brightness drifts
+  // subtly around the lobes — free natural variation.
+  const band = 26 + r * 0.1
+  const g0 = Math.max(0, r - band * 1.3)
+  const g1 = r + band * 1.3
+  const span = g1 - g0
+  const stopAt = (rad) => Math.min(1, Math.max(0, (rad - g0) / span))
+  const crest = ctx.createRadialGradient(cx, cy, g0, cx, cy, g1)
+  crest.addColorStop(0, 'rgba(255,240,214,0)')
+  crest.addColorStop(stopAt(r - band * 0.3), `rgba(255,244,222,${0.14 * energy})`)
+  crest.addColorStop(stopAt(r), `rgba(255,238,208,${0.3 * energy})`)
+  crest.addColorStop(stopAt(r + band * 0.35), `rgba(231,237,252,${0.09 * energy})`)
+  crest.addColorStop(1, 'rgba(205,214,238,0)')
+  ctx.globalCompositeOperation = 'source-over'
+  ctx.lineJoin = 'round'
+  ctx.lineWidth = band * 2.6
+  ctx.strokeStyle = crest
+  ctx.stroke(path)
+}
+
 function burst() {
   if (phase.value === 'burst') return
   phase.value = 'burst'
-  const shroud = shroudRef.value
-  const wave = waveRef.value
-  // Radius that clears the farthest viewport corner, plus the feather.
-  const maxR = Math.hypot(window.innerWidth / 2, window.innerHeight / 2) + FEATHER
+  // Radius that clears the farthest viewport corner, plus feather + lumps.
+  const maxR = Math.hypot(vw / 2, vh / 2) + FEATHER + 60
   const start = performance.now()
 
   function frame(now) {
     const t = Math.min(1, (now - start) / BURST_MS)
-    const r = easeInOutSine(t) * maxR
-    if (shroud) {
-      // transparent inside the wave = hole in the shroud; the page shows
-      // through. Mid-stop keeps the occlusion gradual across the feather so
-      // the edge reads as a soft swell, not a hard rim.
-      const m = `radial-gradient(circle at 50% 50%, transparent ${Math.max(0, r - FEATHER)}px, rgba(0,0,0,0.55) ${Math.max(0, r - FEATHER * 0.45)}px, #000 ${r}px)`
-      shroud.style.webkitMaskImage = m
-      shroud.style.maskImage = m
-    }
-    if (wave) {
-      wave.style.transform = `translate(-50%, -50%) scale(${(r * 2) / WAVE_BASE})`
-      // Quick swell-in, slow decay — a wave losing energy, not a flash.
-      wave.style.opacity = `${Math.min(1, t * 6) * (1 - t * t)}`
-    }
+    drawWave(easeInOutSine(t) * maxR, t)
     if (t < 1) rafId = requestAnimationFrame(frame)
     else finish()
   }
@@ -91,49 +193,37 @@ function onSkip() {
   }
 }
 
+function onResize() {
+  // Mid-burst resizes are not worth re-deriving; the wave outruns them.
+  if (phase.value !== 'charge') return
+  sizeCanvas()
+  drawShroud()
+}
+
 onMounted(() => {
   // Page swaps must not fire under the shroud; finish() unlocks.
   scrollLocked.value = true
+  sizeCanvas()
+  drawShroud()
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
     phase.value = 'reduced'
     later(finish, 380)
     return
   }
+  window.addEventListener('resize', onResize)
   later(burst, CHARGE_MS)
 })
 
 onBeforeUnmount(() => {
   cancelAnimationFrame(rafId)
   timeouts.forEach(clearTimeout)
+  window.removeEventListener('resize', onResize)
 })
 </script>
 
 <template>
   <div class="boot" :class="`boot--${phase}`" aria-hidden="true" @pointerdown="onSkip">
-    <!-- Turbulence filter that makes the wavefront organic. Applied to the
-         fixed-size band stack only, so it rasterizes once — never per frame. -->
-    <svg class="boot__defs" width="0" height="0" aria-hidden="true" focusable="false">
-      <defs>
-        <filter id="cc-boot-wave" x="-30%" y="-30%" width="160%" height="160%">
-          <feTurbulence type="fractalNoise" baseFrequency="0.011 0.017" numOctaves="2" seed="7" result="n" />
-          <feDisplacementMap in="SourceGraphic" in2="n" scale="48" xChannelSelector="R" yChannelSelector="G" />
-        </filter>
-      </defs>
-    </svg>
-
-    <div ref="shroudRef" class="boot__shroud" />
-
-    <!-- Wavefront: pre-rendered at WAVE_BASE, then scale/opacity only.
-         Colour depth: cool faint swell leads, warm crest rides the edge,
-         tungsten afterglow trails inside the revealed zone. -->
-    <div ref="waveRef" class="boot__wave">
-      <span class="boot__afterglow" />
-      <div class="boot__bands">
-        <span class="boot__band boot__band--swell" />
-        <span class="boot__band boot__band--haze" />
-        <span class="boot__band boot__band--core" />
-      </div>
-    </div>
+    <canvas ref="canvasRef" class="boot__canvas" />
 
     <!-- Warm ambient pool that gathers behind the bulb as it charges. -->
     <div class="boot__halo" />
@@ -183,80 +273,11 @@ onBeforeUnmount(() => {
   touch-action: none;
 }
 
-.boot__defs {
-  position: absolute;
-}
-
-.boot__shroud {
+.boot__canvas {
   position: absolute;
   inset: 0;
-  background: var(--bg);
-  /* Own compositor layer — the per-frame mask update repaints this layer
-     alone instead of invalidating everything beneath. */
-  transform: translateZ(0);
-  will-change: mask-image;
-}
-
-/* Wavefront wrapper — fixed raster size; JS animates transform + opacity
-   only (both compositor-side). */
-.boot__wave {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 1000px; /* WAVE_BASE — see script constant */
-  height: 1000px;
-  transform: translate(-50%, -50%) scale(0);
-  opacity: 0;
-  pointer-events: none;
-  will-change: transform, opacity;
-}
-
-/* Tungsten afterglow pooling inside the revealed zone — fades with the
-   wave, leaves the page looking lit rather than switched on. */
-.boot__afterglow {
-  position: absolute;
-  inset: 6%;
-  border-radius: 50%;
-  background: radial-gradient(
-    circle,
-    rgba(255, 240, 214, 0.07) 0%,
-    rgba(255, 240, 214, 0.03) 45%,
-    rgba(255, 240, 214, 0) 72%
-  );
-}
-
-/* The band stack carries the displacement filter — content never changes,
-   so the filter output is rasterized once and only transformed after. */
-.boot__bands {
-  position: absolute;
-  inset: 0;
-  filter: url(#cc-boot-wave);
-}
-
-.boot__band {
-  position: absolute;
-  border-radius: 50%;
-}
-
-/* Faint cool swell leading the wave — temperature contrast gives depth. */
-.boot__band--swell {
-  inset: -42px;
-  border: 30px solid rgba(196, 206, 232, 0.07);
-  filter: blur(30px);
-}
-
-/* Wide diffuse glow riding the front. */
-.boot__band--haze {
-  inset: -4px;
-  border: 16px solid rgba(255, 251, 240, 0.13);
-  filter: blur(18px);
-}
-
-/* Warm crest — brightest part of the swell, still no crisp line anywhere. */
-.boot__band--core {
-  inset: 6px;
-  border: 6px solid rgba(255, 243, 222, 0.4);
-  filter: blur(8px);
+  width: 100%;
+  height: 100%;
 }
 
 /* Warm pool gathering behind the bulb while it charges; swallowed by the
@@ -349,12 +370,11 @@ onBeforeUnmount(() => {
 
 /* Reduced motion: no theatrics — quick fade, no bulb, no wave. */
 .boot--reduced .boot__bulb,
-.boot--reduced .boot__wave,
 .boot--reduced .boot__halo {
   display: none;
 }
 
-.boot--reduced .boot__shroud {
+.boot--reduced .boot__canvas {
   opacity: 0;
   transition: opacity 300ms ease;
 }

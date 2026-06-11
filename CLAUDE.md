@@ -82,11 +82,14 @@ src/
                                    #   the black shroud is masked away behind the wavefront so the
                                    #   page is UNCOVERED, not faded in. Click skips. Locks scroll nav
                                    #   while up; honours prefers-reduced-motion (plain quick fade).
-                                   #   PERF CONTRACT: the wavefront (bands + displacement filter +
-                                   #   afterglow) rasterizes ONCE at fixed size and animates via
-                                   #   transform/opacity only; the shroud's per-frame mask update is
-                                   #   the only paint. Never attach filters to the shroud or size the
-                                   #   wave via width/height — that's what made it choppy once.
+                                   #   PERF CONTRACT: shroud + wave are ONE 2D canvas (a few fills
+                                   #   and one gradient stroke per frame). No CSS masks, no SVG
+                                   #   filters, no blurs — glow comes from a radial-gradient stroke,
+                                   #   the organic edge from a precomputed noise polygon. Earlier
+                                   #   CSS-mask + displacement-filter versions were unfixably janky
+                                   #   on real GPUs — do not reintroduce them. GrainOverlay is
+                                   #   v-show-gated off in App.vue until bootDone (its full-screen
+                                   #   blend pass recomposites under the canvas every frame).
     NavBar.vue                     # Fixed top nav: CC LogoMark (compact) + sliding EN/中 language switch.
     CustomCursor.vue               # Dot + trailing ring. Native cursor hidden site-wide.
     PageProgressBar.vue            # Fixed bottom-centre. 3 horizontal bars + labels. Click to nav.

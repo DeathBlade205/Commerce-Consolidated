@@ -38,7 +38,9 @@ useScrollNav()
 
 <template>
   <CustomCursor />
-  <GrainOverlay />
+  <!-- Grain's full-screen mix-blend pass recomposites under the boot canvas
+       every frame — keep it out of the pipeline until the reveal is done. -->
+  <GrainOverlay v-show="bootDone" />
   <CornerMarks />
   <NavBar />
   <PageProgressBar />
