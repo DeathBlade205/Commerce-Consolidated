@@ -2,10 +2,16 @@
 // Page-load animation: a line-drawn bulb sketches itself in, charges with
 // light from the bottom up, flashes — then throws a wave outward. The black
 // shroud is masked away behind the wavefront, so the page underneath is
-// uncovered by the wave rather than faded in. The wavefront is deliberately
-// non-uniform: blurred luminous bands warped by an SVG turbulence
-// displacement filter, and the shroud's reveal edge gets the same warp so
-// the hole never reads as a perfect circle.
+// uncovered by the wave rather than faded in.
+//
+// Performance contract: everything that changes per-frame is compositor-only.
+// The wavefront (blurred bands + turbulence displacement + afterglow) is
+// rasterized ONCE at a fixed WAVE_BASE size, then animated purely with
+// transform: scale + opacity. The shroud is a plain masked solid — updating
+// its radial-gradient mask is the single per-frame paint, with no SVG filter
+// attached (the displaced wave band rides the edge and supplies the
+// organic look). Never re-attach filters to the shroud or size the wave via
+// width/height — that's what made the first version chop.
 //
 // Phases: charge (CSS-driven bulb choreography) → burst (JS rAF wave) →
 // finish (marks bootDone; App.vue unmounts us via v-if). A click skips ahead.
@@ -17,13 +23,13 @@ import { markBootRevealDone } from '../composables/useBootReveal.js'
 const CHARGE_MS = 1950
 const BURST_MS = 1900
 const FEATHER = 240 // soft width of the reveal edge, px
-// The shroud overhangs the viewport so the displacement warp never exposes
-// the page at the screen borders. Keep > the filter's max displacement.
-const SHROUD_BLEED = 100
+// Raster size of the pre-rendered wavefront. It scales UP from here — the
+// extra softness from upscaling suits a wave losing definition as it grows.
+const WAVE_BASE = 1000
 
 const phase = ref('charge')
 const shroudRef = ref(null)
-const ringRef = ref(null)
+const waveRef = ref(null)
 const { scrollLocked } = useScrollState()
 
 let rafId = 0
@@ -40,7 +46,7 @@ function burst() {
   if (phase.value === 'burst') return
   phase.value = 'burst'
   const shroud = shroudRef.value
-  const ring = ringRef.value
+  const wave = waveRef.value
   // Radius that clears the farthest viewport corner, plus the feather.
   const maxR = Math.hypot(window.innerWidth / 2, window.innerHeight / 2) + FEATHER
   const start = performance.now()
@@ -56,10 +62,10 @@ function burst() {
       shroud.style.webkitMaskImage = m
       shroud.style.maskImage = m
     }
-    if (ring) {
-      ring.style.width = ring.style.height = `${r * 2}px`
-      // Quick swell-in, long decay — like a wave losing energy.
-      ring.style.opacity = `${Math.min(1, t * 8) * (1 - t) * 0.9}`
+    if (wave) {
+      wave.style.transform = `translate(-50%, -50%) scale(${(r * 2) / WAVE_BASE})`
+      // Quick swell-in, slow decay — a wave losing energy, not a flash.
+      wave.style.opacity = `${Math.min(1, t * 6) * (1 - t * t)}`
     }
     if (t < 1) rafId = requestAnimationFrame(frame)
     else finish()
@@ -104,29 +110,33 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="boot" :class="`boot--${phase}`" aria-hidden="true" @pointerdown="onSkip">
-    <!-- Turbulence filters that make the wavefront + reveal edge organic. -->
+    <!-- Turbulence filter that makes the wavefront organic. Applied to the
+         fixed-size band stack only, so it rasterizes once — never per frame. -->
     <svg class="boot__defs" width="0" height="0" aria-hidden="true" focusable="false">
       <defs>
         <filter id="cc-boot-wave" x="-30%" y="-30%" width="160%" height="160%">
           <feTurbulence type="fractalNoise" baseFrequency="0.011 0.017" numOctaves="2" seed="7" result="n" />
           <feDisplacementMap in="SourceGraphic" in2="n" scale="48" xChannelSelector="R" yChannelSelector="G" />
         </filter>
-        <filter id="cc-boot-wave-soft" x="-20%" y="-20%" width="140%" height="140%">
-          <feTurbulence type="fractalNoise" baseFrequency="0.007 0.012" numOctaves="2" seed="3" result="n" />
-          <feDisplacementMap in="SourceGraphic" in2="n" scale="72" xChannelSelector="R" yChannelSelector="G" />
-        </filter>
       </defs>
     </svg>
 
     <div ref="shroudRef" class="boot__shroud" />
 
-    <!-- Wavefront: layered blurred bands, warped by the turbulence filter.
-         Sized/faded by JS each frame, synced to the mask hole. -->
-    <div ref="ringRef" class="boot__ring">
-      <span class="boot__band boot__band--core" />
-      <span class="boot__band boot__band--haze" />
-      <span class="boot__band boot__band--swell" />
+    <!-- Wavefront: pre-rendered at WAVE_BASE, then scale/opacity only.
+         Colour depth: cool faint swell leads, warm crest rides the edge,
+         tungsten afterglow trails inside the revealed zone. -->
+    <div ref="waveRef" class="boot__wave">
+      <span class="boot__afterglow" />
+      <div class="boot__bands">
+        <span class="boot__band boot__band--swell" />
+        <span class="boot__band boot__band--haze" />
+        <span class="boot__band boot__band--core" />
+      </div>
     </div>
+
+    <!-- Warm ambient pool that gathers behind the bulb as it charges. -->
+    <div class="boot__halo" />
 
     <div class="boot__bulb">
       <svg viewBox="0 0 64 80" width="72" height="90" fill="none">
@@ -136,8 +146,8 @@ onBeforeUnmount(() => {
           </clipPath>
           <radialGradient id="cc-boot-glow" cx="50%" cy="58%" r="62%">
             <stop offset="0%" stop-color="#fff" stop-opacity="1" />
-            <stop offset="55%" stop-color="#fff" stop-opacity="0.55" />
-            <stop offset="100%" stop-color="#fff" stop-opacity="0" />
+            <stop offset="45%" stop-color="#ffeccb" stop-opacity="0.6" />
+            <stop offset="100%" stop-color="#ffdfa8" stop-opacity="0" />
           </radialGradient>
         </defs>
 
@@ -179,26 +189,48 @@ onBeforeUnmount(() => {
 
 .boot__shroud {
   position: absolute;
-  inset: calc(-1 * 100px); /* SHROUD_BLEED — see script constant */
+  inset: 0;
   background: var(--bg);
-  /* Warp the masked reveal edge so the hole isn't a perfect circle. */
-  filter: url(#cc-boot-wave-soft);
+  /* Own compositor layer — the per-frame mask update repaints this layer
+     alone instead of invalidating everything beneath. */
+  transform: translateZ(0);
   will-change: mask-image;
 }
 
-/* Wavefront wrapper — sized/faded by JS each frame. The displacement filter
-   turns the concentric bands into one irregular, watery swell. */
-.boot__ring {
+/* Wavefront wrapper — fixed raster size; JS animates transform + opacity
+   only (both compositor-side). */
+.boot__wave {
   position: absolute;
   left: 50%;
   top: 50%;
-  transform: translate(-50%, -50%);
-  width: 0;
-  height: 0;
+  width: 1000px; /* WAVE_BASE — see script constant */
+  height: 1000px;
+  transform: translate(-50%, -50%) scale(0);
   opacity: 0;
-  filter: url(#cc-boot-wave);
   pointer-events: none;
-  will-change: width, height, opacity;
+  will-change: transform, opacity;
+}
+
+/* Tungsten afterglow pooling inside the revealed zone — fades with the
+   wave, leaves the page looking lit rather than switched on. */
+.boot__afterglow {
+  position: absolute;
+  inset: 6%;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(255, 240, 214, 0.07) 0%,
+    rgba(255, 240, 214, 0.03) 45%,
+    rgba(255, 240, 214, 0) 72%
+  );
+}
+
+/* The band stack carries the displacement filter — content never changes,
+   so the filter output is rasterized once and only transformed after. */
+.boot__bands {
+  position: absolute;
+  inset: 0;
+  filter: url(#cc-boot-wave);
 }
 
 .boot__band {
@@ -206,25 +238,60 @@ onBeforeUnmount(() => {
   border-radius: 50%;
 }
 
-/* Brightest part of the swell — still soft, no crisp line anywhere. */
-.boot__band--core {
-  inset: -8px;
-  border: 4px solid rgba(255, 255, 255, 0.32);
-  filter: blur(7px);
+/* Faint cool swell leading the wave — temperature contrast gives depth. */
+.boot__band--swell {
+  inset: -42px;
+  border: 30px solid rgba(196, 206, 232, 0.07);
+  filter: blur(30px);
 }
 
-/* Wide diffuse glow riding on the front. */
+/* Wide diffuse glow riding the front. */
 .boot__band--haze {
-  inset: 0;
-  border: 14px solid rgba(255, 255, 255, 0.14);
+  inset: -4px;
+  border: 16px solid rgba(255, 251, 240, 0.13);
   filter: blur(18px);
 }
 
-/* Faint outer swell leading the wave. */
-.boot__band--swell {
-  inset: -38px;
-  border: 28px solid rgba(255, 255, 255, 0.06);
-  filter: blur(30px);
+/* Warm crest — brightest part of the swell, still no crisp line anywhere. */
+.boot__band--core {
+  inset: 6px;
+  border: 6px solid rgba(255, 243, 222, 0.4);
+  filter: blur(8px);
+}
+
+/* Warm pool gathering behind the bulb while it charges; swallowed by the
+   flash. Composite-only animation (opacity + transform). */
+.boot__halo {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 420px;
+  height: 420px;
+  transform: translate(-50%, -50%) scale(0.6);
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(255, 236, 203, 0.12) 0%,
+    rgba(255, 236, 203, 0.05) 40%,
+    rgba(255, 236, 203, 0) 70%
+  );
+  opacity: 0;
+  pointer-events: none;
+  animation: halo-rise 1100ms cubic-bezier(0.3, 0, 0.4, 1) 760ms both;
+  will-change: transform, opacity;
+}
+
+@keyframes halo-rise {
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+.boot--burst .boot__halo {
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(1.5);
+  transition: opacity 480ms ease, transform 480ms ease;
 }
 
 .boot__bulb {
@@ -268,9 +335,9 @@ onBeforeUnmount(() => {
 }
 
 @keyframes bulb-flash {
-  0%   { filter: drop-shadow(0 0 0 rgba(255, 255, 255, 0)); }
-  45%  { filter: drop-shadow(0 0 30px rgba(255, 255, 255, 0.55)); transform: translate(-50%, -50%) scale(1.05); }
-  100% { filter: drop-shadow(0 0 16px rgba(255, 255, 255, 0.3)); transform: translate(-50%, -50%) scale(1); }
+  0%   { filter: drop-shadow(0 0 0 rgba(255, 240, 210, 0)); }
+  45%  { filter: drop-shadow(0 0 32px rgba(255, 240, 210, 0.55)); transform: translate(-50%, -50%) scale(1.05); }
+  100% { filter: drop-shadow(0 0 18px rgba(255, 240, 210, 0.32)); transform: translate(-50%, -50%) scale(1); }
 }
 
 /* Burst: the bulb dissolves into the wave it just threw. */
@@ -282,12 +349,12 @@ onBeforeUnmount(() => {
 
 /* Reduced motion: no theatrics — quick fade, no bulb, no wave. */
 .boot--reduced .boot__bulb,
-.boot--reduced .boot__ring {
+.boot--reduced .boot__wave,
+.boot--reduced .boot__halo {
   display: none;
 }
 
 .boot--reduced .boot__shroud {
-  filter: none;
   opacity: 0;
   transition: opacity 300ms ease;
 }

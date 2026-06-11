@@ -78,10 +78,15 @@ src/
     ContactView.vue                # Contact — section label, heading, intro, contact grid (4 blocks).
   components/
     BootReveal.vue                 # Page-LOAD animation (plays once per full load): line-drawn bulb
-                                   #   sketches in, charges with light, flashes, then throws a circular
-                                   #   ripple; the black shroud is masked away behind the wavefront so
-                                   #   the page is UNCOVERED, not faded in. Click skips. Locks scroll
-                                   #   nav while up; honours prefers-reduced-motion (plain quick fade).
+                                   #   sketches in, charges with light, flashes, then throws a wave;
+                                   #   the black shroud is masked away behind the wavefront so the
+                                   #   page is UNCOVERED, not faded in. Click skips. Locks scroll nav
+                                   #   while up; honours prefers-reduced-motion (plain quick fade).
+                                   #   PERF CONTRACT: the wavefront (bands + displacement filter +
+                                   #   afterglow) rasterizes ONCE at fixed size and animates via
+                                   #   transform/opacity only; the shroud's per-frame mask update is
+                                   #   the only paint. Never attach filters to the shroud or size the
+                                   #   wave via width/height — that's what made it choppy once.
     NavBar.vue                     # Fixed top nav: CC LogoMark (compact) + sliding EN/中 language switch.
     CustomCursor.vue               # Dot + trailing ring. Native cursor hidden site-wide.
     PageProgressBar.vue            # Fixed bottom-centre. 3 horizontal bars + labels. Click to nav.
