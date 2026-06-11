@@ -5,11 +5,11 @@
 // LEFT of Home on the page-line, so "scroll down at the end" continues
 // rightward into Home.
 //
-// Step animation: the marker box (small) and body box (large) are persistent
-// slots that animate their horizontal positions on step change. When a step
-// flips the layout (marker side: left → right), both boxes slide across each
-// other simultaneously, visually swapping sides. Content inside each box
-// cross-fades in place.
+// Step animation: a conveyor. Each step renders one PAIR of boxes (small
+// marker + large body, arrangement alternating per step via `side`). On
+// advance, the whole outgoing pair slides off to the LEFT while the new
+// pair slides in from the RIGHT — previous boxes leave, making space for
+// the next ones. Stepping back plays the same slide mirrored.
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { registerStepHost } from '../composables/useScrollNav.js'
 
@@ -41,13 +41,13 @@ const processSteps = [
 ]
 
 const currentStep = ref(0)
-const previousStep = ref(0)
+// +1 = advancing (slide right→left), -1 = stepping back (mirrored).
+const stepDir = ref(1)
 
-const currentSide = computed(() => processSteps[currentStep.value].side)
 const currentData = computed(() => processSteps[currentStep.value])
 
 function setStep(n) {
-  previousStep.value = currentStep.value
+  stepDir.value = n >= currentStep.value ? 1 : -1
   currentStep.value = n
 }
 
@@ -93,27 +93,27 @@ onBeforeUnmount(() => {
       A studio for <em>considered</em> commerce.
     </h1>
 
-    <!-- Two persistent slots. `step-row--marker-{side}` swaps their absolute
-         `left` values; the CSS transition on `left` does the actual slide.
-         Content inside each slot cross-fades when the step number changes. -->
-    <div class="step-row" :class="`step-row--marker-${currentSide}`">
-      <div class="step-slot step-slot--marker">
-        <Transition name="step-fade">
-          <article :key="currentStep" class="step-card step-card--marker">
+    <!-- Conveyor stage: each step is one pair of cards keyed by step index.
+         The outgoing pair slides off (absolute during leave so the entering
+         pair takes its place), the incoming pair slides in. `--flip` puts
+         the marker on the right for alternating steps. -->
+    <div class="step-stage">
+      <Transition :name="stepDir > 0 ? 'step-next' : 'step-prev'">
+        <div
+          :key="currentStep"
+          class="step-pair"
+          :class="{ 'step-pair--flip': currentData.side === 'right' }"
+        >
+          <article class="step-card step-card--marker">
             <p class="label step-card__label">Step {{ currentData.number }}</p>
             <h3 class="step-card__title">{{ currentData.title }}</h3>
           </article>
-        </Transition>
-      </div>
-
-      <div class="step-slot step-slot--body">
-        <Transition name="step-fade">
-          <article :key="currentStep" class="step-card step-card--body">
+          <article class="step-card step-card--body">
             <p class="step-card__desc">{{ currentData.description }}</p>
             <p class="label step-card__duration">{{ currentData.duration }}</p>
           </article>
-        </Transition>
-      </div>
+        </div>
+      </Transition>
     </div>
   </main>
 </template>
@@ -148,49 +148,45 @@ onBeforeUnmount(() => {
   color: var(--grey-300);
 }
 
-/* Two slots, absolutely positioned. Their `left` value depends on the row
-   class (marker-left vs marker-right). CSS transition on `left` animates
-   the swap — both slots slide across each other in opposite directions. */
-.step-row {
+/* Conveyor stage. Pairs slide horizontally through it; overflow clips the
+   one that's leaving. */
+.step-stage {
   position: relative;
   flex: 1;
   min-height: 420px;
-  margin: 0 auto;
   width: 100%;
+  overflow: hidden;
 }
 
-.step-slot {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  transition: left 700ms cubic-bezier(0.4, 0, 0.6, 1);
-}
-
-.step-slot--marker {
-  width: 30%;
-}
-
-.step-slot--body {
-  width: 66%;
-}
-
-/* Marker-on-LEFT layout */
-.step-row--marker-left  .step-slot--marker { left: 0; }
-.step-row--marker-left  .step-slot--body   { left: 34%; }
-
-/* Marker-on-RIGHT layout (Step 2). Both slots animate to new lefts. */
-.step-row--marker-right .step-slot--marker { left: 70%; }
-.step-row--marker-right .step-slot--body   { left: 0; }
-
-/* Cards inside slots — bordered boxes, with content that cross-fades on
-   step change via the step-fade Transition. */
-.step-card {
+/* One step = one pair of cards in a flex row. `--flip` mirrors the row so
+   the small marker alternates sides between steps. Absolute against the
+   stage so the cards always fill its height (percentage heights don't
+   resolve against the flexed stage) — mobile reverts this to stack. */
+.step-pair {
   position: absolute;
   inset: 0;
+  display: flex;
+  gap: 4%;
+  align-items: stretch;
+}
+
+.step-pair--flip {
+  flex-direction: row-reverse;
+}
+
+.step-card {
   border: 1px solid var(--hairline);
   background: rgba(255, 255, 255, 0.012);
   display: flex;
   flex-direction: column;
+}
+
+.step-card--marker {
+  width: 30%;
+}
+
+.step-card--body {
+  width: 66%;
 }
 
 .step-card--marker {
@@ -231,34 +227,57 @@ onBeforeUnmount(() => {
   margin: auto 0 0;
 }
 
-/* Content cross-fade — old card fades out, new fades in. Both stacked inside
-   the same slot via absolute positioning, so they overlay during the swap. */
-.step-fade-enter-active,
-.step-fade-leave-active {
-  transition: opacity 500ms ease, transform 500ms cubic-bezier(0.4, 0, 0.6, 1);
+/* Conveyor slide — same pacing/easing family as the page-line transition in
+   App.vue so steps feel like a smaller version of the same mechanic.
+   The leaving pair is absolute so the entering pair takes its place. */
+.step-next-enter-active,
+.step-next-leave-active,
+.step-prev-enter-active,
+.step-prev-leave-active {
+  transition:
+    transform 700ms cubic-bezier(0.4, 0, 0.6, 1),
+    opacity 540ms linear;
 }
 
-.step-fade-enter-from {
-  opacity: 0;
-  transform: translateY(8px);
+.step-next-leave-active,
+.step-prev-leave-active {
+  position: absolute;
+  inset: 0;
 }
 
-.step-fade-leave-to {
-  opacity: 0;
-  transform: translateY(-8px);
+/* Advancing: new pair in from the RIGHT, old pair out to the LEFT. */
+.step-next-enter-from {
+  transform: translateX(calc(100% + 64px));
+  opacity: 0.3;
+}
+.step-next-leave-to {
+  transform: translateX(calc(-100% - 64px));
+  opacity: 0.3;
+}
+
+/* Stepping back: mirrored. */
+.step-prev-enter-from {
+  transform: translateX(calc(-100% - 64px));
+  opacity: 0.3;
+}
+.step-prev-leave-to {
+  transform: translateX(calc(100% + 64px));
+  opacity: 0.3;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .step-slot {
-    transition: none;
-  }
-  .step-fade-enter-active,
-  .step-fade-leave-active {
+  .step-next-enter-active,
+  .step-next-leave-active,
+  .step-prev-enter-active,
+  .step-prev-leave-active {
     transition: opacity 200ms ease;
   }
-  .step-fade-enter-from,
-  .step-fade-leave-to {
+  .step-next-enter-from,
+  .step-next-leave-to,
+  .step-prev-enter-from,
+  .step-prev-leave-to {
     transform: none;
+    opacity: 0;
   }
 }
 
@@ -268,39 +287,30 @@ onBeforeUnmount(() => {
     gap: 40px;
   }
 
-  /* Mobile: stack slots vertically — marker on top regardless of side,
-     body below. No horizontal slide on small viewports (too cramped). */
-  .step-row {
+  /* Mobile: the pair stacks vertically — marker on top regardless of side —
+     but the conveyor slide stays; the pair still moves as one unit. */
+  .step-stage {
     min-height: 0;
-    display: flex;
+  }
+
+  .step-pair,
+  .step-pair--flip {
+    position: relative;
+    inset: auto;
     flex-direction: column;
     gap: 16px;
   }
 
-  .step-slot {
-    position: relative;
-    width: 100%;
-    top: auto;
-    bottom: auto;
-    transition: none;
-  }
-
-  .step-row--marker-left  .step-slot--marker,
-  .step-row--marker-right .step-slot--marker { left: auto; order: 0; }
-  .step-row--marker-left  .step-slot--body,
-  .step-row--marker-right .step-slot--body   { left: auto; order: 1; }
-
-  .step-card {
-    position: relative;
-    inset: auto;
-  }
-
-  /* Cards are static in the stacked layout, so during the cross-fade the
-     leaving card would briefly double the column height. Take it out of
-     flow for the transition so the entering card lands in place. */
-  .step-fade-leave-active {
+  /* The leaving pair still overlays during the slide. */
+  .step-next-leave-active,
+  .step-prev-leave-active {
     position: absolute;
     inset: 0;
+  }
+
+  .step-card--marker,
+  .step-card--body {
+    width: 100%;
   }
 
   .step-card--marker { padding: 24px; }

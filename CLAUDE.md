@@ -174,11 +174,11 @@ User instructed: **removed** the eyebrow strap (`DIGITAL PRACTICE · SYDNEY · E
 ### ProcessView (`/process`) — Process, the 3-step deck
 **This is NOT a long scrollable page.** It's a fixed-viewport step deck. `overflow: hidden`, content fits in one viewport.
 
-Layout: heading on top, then a `.step-row` with two absolute-positioned slots:
-- `.step-slot--marker` (30% wide) — Step number + title in a bordered card
-- `.step-slot--body` (66% wide) — Description + duration in a bordered card
+Layout: heading on top, then a `.step-stage` (relative, overflow hidden) holding one `.step-pair` per step — a flex row of two bordered cards:
+- `.step-card--marker` (30% wide) — Step number + title
+- `.step-card--body` (66% wide) — Description + duration
 
-The `step-row--marker-{left|right}` class controls the `left:` value of both slots. CSS `transition: left 700ms` animates the swap. **On step change, the marker box slides one way and the body box slides the other way — they appear to switch sides.** Content inside each card cross-fades via `<Transition name="step-fade">` keyed by `currentStep`.
+**Conveyor animation:** the pair is keyed by `currentStep` inside a `<Transition>`; advancing slides the whole outgoing pair off to the LEFT while the new pair slides in from the RIGHT (`step-next`), stepping back plays the mirror (`step-prev`, direction tracked in `stepDir`). `.step-pair--flip` (`flex-direction: row-reverse`) alternates which side the small marker sits on per step. Pairs are absolute against the stage on desktop so cards fill its height; mobile reverts them to in-flow stacks with the leaving pair absolute during the slide.
 
 Steps:
 - Step 1 (Brief) — `side: 'left'` (marker left, body right)
@@ -340,7 +340,7 @@ These are the choices the user has explicitly made or vetoed. Don't re-litigate 
 | Page-line model with scroll-trigger swaps | "each swap triggered by scrolling, but not a gradual thing… plays the full animation… sliding across." |
 | Process to the LEFT of Home, Contact to the RIGHT | User's mental model: arrows point those directions on Home's bottom callouts. |
 | 3-step deck on Process (not scrollable sections) | "Cut everything except the 3 steps." Process is just the engagement steps now. |
-| Marker + body boxes slide in opposite directions on step change | "i want the little box to shift as well… slides the big box into the left, and its little box on right." Per-slot left-position animation. |
+| Step change = conveyor slide (REVERSED earlier slot-swap) | User: the boxes crossing each other "looks clunky with that huge box moving around." Now the whole pair slides out left / in from right, sides alternating per step. |
 | Custom cursor: dot + ring (not crosshair arms) | Crosshair arms "looks bad because of the plus." Just a dot with an outer ring. |
 | Native cursor hidden | "Hide it entirely" (vs keep visible). |
 | `PageProgressBar` (bottom centre, 3 bars) | User wanted a charge indicator + escape hatch (click to jump). "Have charge bars active on every page." |

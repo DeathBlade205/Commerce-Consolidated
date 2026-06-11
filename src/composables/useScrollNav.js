@@ -68,7 +68,10 @@ function neighborPath(currentX, direction) {
 }
 
 function atTop() {
-  return (window.scrollY || document.documentElement.scrollTop || 0) <= 0
+  // Tolerance matters: browsers settle scroll at fractional offsets (0.4px
+  // etc. under DPR scaling), and a strict <= 0 made scroll-up swaps dead on
+  // those — while scroll-down kept working via atBottom's slack.
+  return (window.scrollY || document.documentElement.scrollTop || 0) <= 2
 }
 function atBottom() {
   const scrollTop = window.scrollY || document.documentElement.scrollTop || 0
@@ -78,6 +81,16 @@ function atBottom() {
     document.body.scrollHeight,
   )
   return scrollTop + viewport >= docHeight - 2
+}
+
+// Wheel deltas arrive in different units per browser: Chromium reports
+// pixels (deltaMode 0), Firefox reports LINES (deltaMode 1, ~3/tick) and
+// some setups report pages (2). Without normalising, the px-tuned
+// WHEEL_THRESHOLD is near-unreachable on line-mode browsers.
+function normalizedDeltaY(e) {
+  if (e.deltaMode === 1) return e.deltaY * 16
+  if (e.deltaMode === 2) return e.deltaY * window.innerHeight
+  return e.deltaY
 }
 
 // Returns 'step' when the host can advance/retreat in `direction`, else 'page'.
@@ -154,7 +167,7 @@ export function useScrollNav() {
   function onWheel(e) {
     if (scrollLocked.value || reducedMotion()) return
 
-    const dy = e.deltaY
+    const dy = normalizedDeltaY(e)
     if (Math.abs(dy) < 1) return
 
     const wantsRight = dy > 0
