@@ -1,9 +1,12 @@
 <script setup>
-import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import { RouterLink } from 'vue-router'
 import FlashlightReveal from '../components/FlashlightReveal.vue'
 import LogoMark from '../components/LogoMark.vue'
 import { hasFinePointer } from '../composables/useFinePointer.js'
+import { useBootReveal } from '../composables/useBootReveal.js'
+
+const { bootDone } = useBootReveal()
 
 // `entered` flips from false → true on the next animation frame after mount.
 // Elements have their final visible state by default; while `entered` is false
@@ -92,20 +95,37 @@ function cancelSweepOnUserMove(e) {
   }
 }
 
-onMounted(() => {
+// Entry choreography. `cascade: true` is the normal page-swap entry (staggered
+// fade-up). On a fresh page load the BootReveal ripple IS the entry — content
+// must already sit in its final state under the shroud so the wavefront
+// genuinely uncovers it — and the sweep/breath follow the reveal instead.
+function beginEntry(cascade) {
   if (!isTouch) {
     window.addEventListener('mousemove', cancelSweepOnUserMove, { capture: true })
   }
-  // Flip `entered` on next paint so the CSS transitions kick in
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => { entered.value = true })
-  })
+  if (cascade) {
+    // Flip `entered` on next paint so the CSS transitions kick in
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => { entered.value = true })
+    })
+  } else {
+    entered.value = true
+  }
   if (isTouch) {
     // No flourish path on touch — drop the logo straight into ambient breath
-    // after the cascade entry settles.
-    setTimeout(() => { logoBreath.value = true }, 1600)
+    // after the entry settles.
+    setTimeout(() => { logoBreath.value = true }, cascade ? 1600 : 900)
   } else {
-    setTimeout(runIntroSweep, 500)
+    setTimeout(runIntroSweep, cascade ? 500 : 300)
+  }
+}
+
+onMounted(() => {
+  if (bootDone.value) {
+    beginEntry(true)
+  } else {
+    entered.value = true
+    watch(bootDone, () => beginEntry(false), { once: true })
   }
 })
 

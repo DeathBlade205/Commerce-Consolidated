@@ -63,6 +63,8 @@ src/
     useScrollNav.js                # ★ Central nav engine. See "Scroll/keyboard navigation" below.
     useFinePointer.js              # hasFinePointer() — (hover:hover)+(pointer:fine) media check.
                                    #   Single source of truth for cursor/flashlight device gating.
+    useBootReveal.js               # bootDone ref + markBootRevealDone(). Pages gate their entry
+                                   #   choreography on it (HomeView waits for the boot ripple).
   directives/
     reveal.js                      # v-reveal — IntersectionObserver-based scroll reveal. Used in ContactView.
                                    #   Adds .reveal + .reveal--from-{up,left,right} classes that animate in.
@@ -75,6 +77,11 @@ src/
     ProcessView.vue                # Process — 3-step slide deck. Registers as step host with useScrollNav.
     ContactView.vue                # Contact — section label, heading, intro, contact grid (4 blocks).
   components/
+    BootReveal.vue                 # Page-LOAD animation (plays once per full load): line-drawn bulb
+                                   #   sketches in, charges with light, flashes, then throws a circular
+                                   #   ripple; the black shroud is masked away behind the wavefront so
+                                   #   the page is UNCOVERED, not faded in. Click skips. Locks scroll
+                                   #   nav while up; honours prefers-reduced-motion (plain quick fade).
     NavBar.vue                     # Fixed top nav: CC LogoMark (compact) + sliding EN/中 language switch.
     CustomCursor.vue               # Dot + trailing ring. Native cursor hidden site-wide.
     PageProgressBar.vue            # Fixed bottom-centre. 3 horizontal bars + labels. Click to nav.
@@ -297,7 +304,9 @@ Atmospheric chrome. Fixed-position, low-opacity. Don't touch unless you want the
 
 8. **The RouterView Transition must start as `'none'`.** vue-router resolves the initial URL asynchronously, so the first page is inserted AFTER the Transition's first render — with a slide name set, every fresh load / refresh plays a full slide-in from offscreen (this looked like the page "dying" on refresh). `App.vue` sets the real slide names in a `router.afterEach` that skips `from === START_LOCATION`.
 
-9. **Device gating goes through `hasFinePointer()`** (`useFinePointer.js`), which matches the `@media (hover: hover) and (pointer: fine)` block in base.css. Don't reintroduce `ontouchstart`/`maxTouchPoints` checks — they classify touchscreen laptops as touch-only, which hid the custom cursor while CSS still hid the native one (no cursor at all).
+9. **On a fresh load, HomeView skips its cascade** — when `bootDone` is false at mount, content goes straight to final state so the BootReveal ripple genuinely uncovers it; the cascade only plays on page-swap entries. The flashlight intro sweep always waits for the reveal. Timing coupling lives in `BootReveal.vue`: `CHARGE_MS` must match the CSS draw/fill/flash delays.
+
+10. **Device gating goes through `hasFinePointer()`** (`useFinePointer.js`), which matches the `@media (hover: hover) and (pointer: fine)` block in base.css. Don't reintroduce `ontouchstart`/`maxTouchPoints` checks — they classify touchscreen laptops as touch-only, which hid the custom cursor while CSS still hid the native one (no cursor at all).
 
 ---
 

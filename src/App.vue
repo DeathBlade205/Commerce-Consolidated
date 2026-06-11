@@ -6,9 +6,12 @@ import CustomCursor from './components/CustomCursor.vue'
 import GrainOverlay from './components/GrainOverlay.vue'
 import CornerMarks from './components/CornerMarks.vue'
 import PageProgressBar from './components/PageProgressBar.vue'
+import BootReveal from './components/BootReveal.vue'
 import { useScrollNav } from './composables/useScrollNav.js'
+import { useBootReveal } from './composables/useBootReveal.js'
 
 const router = useRouter()
+const { bootDone } = useBootReveal()
 
 // Direction of the upcoming page transition. Pages are laid out on a number
 // line via `meta.x` (process=-1, home=0, contact=1):
@@ -39,6 +42,8 @@ useScrollNav()
   <CornerMarks />
   <NavBar />
   <PageProgressBar />
+  <!-- Load animation: bulb charges, ripple uncovers the page. Unmounts after. -->
+  <BootReveal v-if="!bootDone" />
   <div class="page-stage">
     <RouterView v-slot="{ Component }">
       <Transition :name="transitionName">
