@@ -7,6 +7,7 @@ Website for **Commerce Consolidated**, a small Sydney digital agency offering We
 
 **Run dev:** `pnpm dev` (served at `http://127.0.0.1:5174`)
 **Build:** `pnpm build`
+**Live:** https://commerce-consolidated.vercel.app (Vercel — SPA deep-link refresh depends on the rewrites in `vercel.json`)
 
 ---
 
