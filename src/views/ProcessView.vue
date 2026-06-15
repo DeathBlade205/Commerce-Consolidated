@@ -93,27 +93,46 @@ onBeforeUnmount(() => {
       A studio for <em>considered</em> commerce.
     </h1>
 
-    <!-- Conveyor stage: each step is one pair of cards keyed by step index.
-         The outgoing pair slides off (absolute during leave so the entering
-         pair takes its place), the incoming pair slides in. `--flip` puts
-         the marker on the right for alternating steps. -->
-    <div class="step-stage">
-      <Transition :name="stepDir > 0 ? 'step-next' : 'step-prev'">
-        <div
-          :key="currentStep"
-          class="step-pair"
-          :class="{ 'step-pair--flip': currentData.side === 'right' }"
-        >
-          <article class="step-card step-card--marker">
-            <p class="label step-card__label">Step {{ currentData.number }}</p>
-            <h3 class="step-card__title">{{ currentData.title }}</h3>
-          </article>
-          <article class="step-card step-card--body">
-            <p class="step-card__desc">{{ currentData.description }}</p>
-            <p class="label step-card__duration">{{ currentData.duration }}</p>
-          </article>
-        </div>
-      </Transition>
+    <!-- Deck = stage + step indicator, centred as one unit between the heading
+         and the bottom bar. -->
+    <div class="step-deck">
+      <!-- Conveyor stage: each step is one pair of cards keyed by step index.
+           The outgoing pair slides off (absolute during leave so the entering
+           pair takes its place), the incoming pair slides in. `--flip` puts
+           the marker on the right for alternating steps. -->
+      <div class="step-stage">
+        <Transition :name="stepDir > 0 ? 'step-next' : 'step-prev'">
+          <div
+            :key="currentStep"
+            class="step-pair"
+            :class="{ 'step-pair--flip': currentData.side === 'right' }"
+          >
+            <article class="step-card step-card--marker">
+              <p class="label step-card__label">Step {{ currentData.number }}</p>
+              <h3 class="step-card__title">{{ currentData.title }}</h3>
+            </article>
+            <article class="step-card step-card--body">
+              <p class="step-card__desc">{{ currentData.description }}</p>
+              <p class="label step-card__duration">{{ currentData.duration }}</p>
+            </article>
+          </div>
+        </Transition>
+      </div>
+
+      <!-- Step indicator: shows there's a deck to move through, and taps jump
+           directly. On touch this is the swipe affordance. -->
+      <nav class="step-dots" aria-label="Process steps">
+        <button
+          v-for="(s, i) in processSteps"
+          :key="s.number"
+          type="button"
+          class="step-dot"
+          :class="{ 'is-active': i === currentStep }"
+          :aria-label="`Go to step ${s.number}: ${s.title}`"
+          :aria-current="i === currentStep ? 'step' : undefined"
+          @click="setStep(i)"
+        />
+      </nav>
     </div>
   </main>
 </template>
@@ -148,17 +167,62 @@ onBeforeUnmount(() => {
   color: var(--grey-300);
 }
 
-/* Conveyor stage. Pairs slide horizontally through it; overflow clips the
-   one that's leaving. The boxes are a restrained fixed height and the stage
-   floats to the vertical centre of the gap between the heading and the bottom
-   bar (margin:auto in the flex column) — flex:1 used to stretch them
-   full-height, which read as oversized. */
+/* Deck floats to the vertical centre of the gap between the heading and the
+   bottom bar (margin:auto in the flex column), carrying the stage + dots as
+   one unit. */
+.step-deck {
+  margin: auto 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(22px, 3.5vh, 40px);
+}
+
+/* Conveyor stage. Pairs slide horizontally through it; overflow clips the one
+   that's leaving. The boxes are a restrained fixed height — flex:1 used to
+   stretch them full-height, which read as oversized. */
 .step-stage {
   position: relative;
   width: 100%;
   height: clamp(260px, 42vh, 360px);
-  margin: auto 0;
   overflow: hidden;
+}
+
+/* Step indicator — small dots, current one lit. Buttons carry a generous
+   transparent hit area (touch) around a small visual dot drawn via ::before. */
+.step-dots {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+}
+
+.step-dot {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  padding: 0;
+}
+
+.step-dot::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--grey-500);
+  transition: background 280ms ease, transform 280ms ease;
+}
+
+.step-dot.is-active::before {
+  background: var(--grey-100);
+  transform: scale(1.35);
+}
+
+.step-dot:hover::before {
+  background: var(--grey-300);
 }
 
 /* One step = one pair of cards in a flex row. `--flip` mirrors the row so
@@ -291,11 +355,10 @@ onBeforeUnmount(() => {
   }
 
   /* Mobile: the pair stacks vertically — marker on top regardless of side —
-     but the conveyor slide stays; the pair still moves as one unit. Drop the
-     fixed height + centring so the stacked cards size to content. */
+     but the conveyor slide stays; the pair still moves as one unit. Stage
+     sizes to the stacked cards; the deck's margin:auto still centres it. */
   .step-stage {
     height: auto;
-    margin: 0;
   }
 
   .step-pair,

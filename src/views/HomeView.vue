@@ -192,7 +192,9 @@ onBeforeUnmount(() => {
       <RouterLink to="/process" class="hero-nav__link hero-nav__link--left">
         <FlashlightReveal :radius="220">
           <span class="hero-nav__inner">
-            <span class="hero-nav__arrow" aria-hidden="true">←</span>
+            <span class="hero-nav__arrow" aria-hidden="true">
+              <span class="arrow-h">←</span><span class="arrow-v">↑</span>
+            </span>
             <span class="hero-nav__label">Process</span>
           </span>
         </FlashlightReveal>
@@ -204,7 +206,9 @@ onBeforeUnmount(() => {
         <FlashlightReveal :radius="220">
           <span class="hero-nav__inner">
             <span class="hero-nav__label">Contact</span>
-            <span class="hero-nav__arrow" aria-hidden="true">→</span>
+            <span class="hero-nav__arrow" aria-hidden="true">
+              <span class="arrow-h">→</span><span class="arrow-v">↓</span>
+            </span>
           </span>
         </FlashlightReveal>
         <FlashlightReveal :radius="160">
@@ -393,6 +397,10 @@ onBeforeUnmount(() => {
   font-weight: 500;
 }
 
+/* Desktop = horizontal page-line (← →). The vertical glyphs are mobile-only,
+   where navigation is a vertical swipe (↑ Process / ↓ Contact). */
+.arrow-v { display: none; }
+
 .hero-nav__arrow {
   font-family: var(--font-mono);
   font-size: 1.2em;
@@ -498,10 +506,23 @@ onBeforeUnmount(() => {
     white-space: normal; /* allow wrapping on narrow viewports */
   }
 
+  /* Subtitle was running edge-to-edge — drop the size + tracking so it sits
+     comfortably within the page padding and wraps if it must. */
+  .subtitle-text {
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    line-height: 1.5;
+    text-align: center;
+  }
+
   /* "use cursor to look around" makes no sense on touch — hide. */
   .hint {
     display: none;
   }
+
+  /* Swipe is vertical on mobile, so the arrows point up/down, not left/right. */
+  .arrow-h { display: none; }
+  .arrow-v { display: inline; }
 
   .hero-nav {
     left: 22px;

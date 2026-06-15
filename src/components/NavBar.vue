@@ -125,13 +125,14 @@ function setLang(value) {
   .nav {
     padding: 22px 22px;
   }
+  /* Taller on touch — 24px was below a comfortable tap target. */
   .lang-switch {
-    height: 24px;
+    height: 34px;
   }
   .lang-switch__option {
-    flex-basis: 26px;
-    padding: 0 8px;
-    font-size: 10px;
+    flex-basis: 34px;
+    padding: 0 10px;
+    font-size: 11px;
   }
 }
 </style>

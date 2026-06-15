@@ -171,7 +171,7 @@ Single viewport hero. No document scroll (`overflow: hidden`). Layout:
 - Title is two flex-column lines, both left-aligned (no staircase indent — user explicitly aligned them).
 - Subtitle and hint both crushed to `rgba(255,255,255,0.08)` dim — only readable when the flashlight is over them.
 - Logo is `LogoMark size=220` wrapped in `<FlashlightReveal hidden>` — fully invisible until the cursor passes. Has one-shot `flourish` on first load, then continuous `breath` cycle.
-- Bottom corner callouts (`← PROCESS` / `CONTACT →`) at `clamp(22px, 2.4vw, 34px)` with small `SCROLL UP` / `SCROLL DOWN` cues underneath. These are real RouterLinks too.
+- Bottom corner callouts (`← PROCESS` / `CONTACT →`) at `clamp(22px, 2.4vw, 34px)` with small `SCROLL UP` / `SCROLL DOWN` cues underneath. These are real RouterLinks too. **Mobile:** the arrows flip to vertical (`↑ PROCESS` / `CONTACT ↓`) to match the vertical swipe gesture — each arrow renders both glyphs (`.arrow-h` / `.arrow-v`) toggled by the 880px media query.
 
 User instructed: **removed** the eyebrow strap (`DIGITAL PRACTICE · SYDNEY · EST 2026`), the long mission paragraph, and the bottom meta strip (`Currently taking briefs` / Sydney coords) — all "clutter."
 
@@ -188,6 +188,8 @@ Steps:
 - Step 1 (Brief) — `side: 'left'` (marker left, body right)
 - Step 2 (Design) — `side: 'right'` (marker right, body left)
 - Step 3 (Build & Launch) — `side: 'left'`
+
+A `.step-dots` indicator (one dot per step, current lit) sits under the stage inside the centred `.step-deck` wrapper — it's the swipe affordance on touch and taps jump directly via `setStep`. Dots carry a 32px transparent hit area around a 7px `::before` visual.
 
 ProcessView calls `registerStepHost` **synchronously in setup**, providing a getter `() => currentStep.value` (NOT the ref itself — see traps). It also installs its own keydown listener for ArrowUp / ArrowDown / Space for keyboard step nav (skipped when a button/link/input has focus, so native activation wins).
 
