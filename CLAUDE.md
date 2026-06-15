@@ -77,19 +77,21 @@ src/
     ProcessView.vue                # Process — 3-step slide deck. Registers as step host with useScrollNav.
     ContactView.vue                # Contact — section label, heading, intro, contact grid (4 blocks).
   components/
-    BootReveal.vue                 # Page-LOAD animation (plays once per full load): line-drawn bulb
-                                   #   sketches in, charges with light, flashes, then throws a wave;
-                                   #   the black shroud is masked away behind the wavefront so the
-                                   #   page is UNCOVERED, not faded in. Click skips. Locks scroll nav
-                                   #   while up; honours prefers-reduced-motion (plain quick fade).
+    BootReveal.vue                 # Page-LOAD animation (plays once per full load): a single white
+                                   #   droplet falls into the centre and its impact throws a white
+                                   #   ripple that UNCOVERS the page (black shroud erased behind the
+                                   #   wavefront, not faded in). Greyscale only. ~1.5s. Click skips.
+                                   #   Locks scroll nav while up; honours prefers-reduced-motion.
+                                   #   ROBUSTNESS: a MAX_MS watchdog force-calls finish() so a stalled
+                                   #   rAF (bg tab / slow GPU) can never leave the site locked under
+                                   #   the shroud. finish() is idempotent (the `done` guard).
                                    #   PERF CONTRACT: shroud + wave are ONE 2D canvas (a few fills
                                    #   and one gradient stroke per frame). No CSS masks, no SVG
-                                   #   filters, no blurs — glow comes from a radial-gradient stroke,
-                                   #   the organic edge from a precomputed noise polygon. Earlier
-                                   #   CSS-mask + displacement-filter versions were unfixably janky
-                                   #   on real GPUs — do not reintroduce them. GrainOverlay is
-                                   #   v-show-gated off in App.vue until bootDone (its full-screen
-                                   #   blend pass recomposites under the canvas every frame).
+                                   #   filters, no blurs — glow is a radial-gradient stroke, the
+                                   #   organic edge a precomputed noise polygon. Earlier CSS-mask +
+                                   #   displacement-filter versions were unfixably janky on real GPUs
+                                   #   — do not reintroduce. GrainOverlay is v-show-gated off in
+                                   #   App.vue until bootDone (its blend pass recomposites every frame).
     NavBar.vue                     # Fixed top nav: CC LogoMark (compact) + sliding EN/中 language switch.
     CustomCursor.vue               # Dot + trailing ring. Native cursor hidden site-wide.
     PageProgressBar.vue            # Fixed bottom-centre. 3 horizontal bars + labels. Click to nav.
