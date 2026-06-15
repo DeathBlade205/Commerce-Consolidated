@@ -113,8 +113,8 @@ src/
 - `WHEEL_THRESHOLD = 450` — wheel-delta needed to commit a swap
 - `LOCK_MS = 900` — lockout window after a swap
 - `TOUCH_THRESHOLD = 100` — finger-travel px for swipe swap
-- `DECAY_IDLE_MS = 200` — idle time before charge starts draining
-- `DECAY_RATE = 0.08` — fraction drained per RAF frame after idle
+- `DECAY_IDLE_MS = 320` — idle time before charge starts draining
+- `DECAY_RATE = 0.06` — fraction drained per RAF frame after idle (gentle, so a deliberate notch-by-notch scroll-up still reaches the threshold instead of decaying between clicks)
 
 **State** (module-level reactive refs, NOT instance-scoped):
 - `scrollCharge: Ref<number>` — signed -1..1 ratio of accumulated charge / threshold. **Only updated when intent is `page`** (so PageProgressBar doesn't fill during step charging).
@@ -126,7 +126,9 @@ src/
 - Step host registered AND `getCurrentStep() + direction` is within `[0, count)` → `'step'`
 - Step host registered AND that would overflow → `'page'` (fall through to page swap)
 
-Page intent additionally requires `atTop()` or `atBottom()` (so a long page's internal scroll isn't hijacked). Step intent doesn't — the host page has no scroll, the wheel always belongs to the host.
+Page intent additionally requires `atTop()` or `atBottom()` (so a long page's internal scroll isn't hijacked). Step intent doesn't — the host page has no scroll, the wheel always belongs to the host. `atTop`/`atBottom` use `document.scrollingElement` with `EDGE_SLACK = 3` px (browsers settle scroll at fractional offsets, so strict equality made the scroll-up edge unreachable — that was the "can't scroll up to previous page" bug).
+
+**Browser-nav hijack (mb4/mb5 prevention):** `onWheel` calls `e.preventDefault()` on *every* event it owns — step nav, or page nav while sitting at an edge — not just at the threshold, so the browser never bounces, scroll-chains, or fires history back/forward mid-charge. Horizontal/tilt wheel (`|deltaX| > |deltaY|`) is eaten outright. Events during `scrollLocked` are also preventDefaulted to swallow the inertial tail. `overscroll-behavior: none` (both axes, base.css) backs this for trackpad/touch overscroll. Mid-page scroll (not at an edge) is deliberately NOT prevented, so Contact's long content scrolls normally.
 
 **Step host API** — pages call `registerStepHost(host)`:
 ```js

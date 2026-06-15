@@ -23,8 +23,12 @@ import { useRoute, useRouter } from 'vue-router'
 const WHEEL_THRESHOLD = 450
 const LOCK_MS = 900
 const TOUCH_THRESHOLD = 100
-const DECAY_IDLE_MS = 200
-const DECAY_RATE = 0.08
+// Gentler than before: charge only starts draining after a longer idle and
+// bleeds off slowly, so a deliberate, notch-by-notch scroll still reaches the
+// threshold instead of decaying between clicks (the old 200ms/0.08 made
+// slow scroll-up feel dead).
+const DECAY_IDLE_MS = 320
+const DECAY_RATE = 0.06
 
 export const ORDERED_PATHS = [
   { path: '/process', x: -1, label: 'Process' },
@@ -67,20 +71,25 @@ function neighborPath(currentX, direction) {
   return ORDERED_PATHS.find((r) => r.x === targetX)?.path ?? null
 }
 
+// Tolerance matters: browsers settle scroll at fractional offsets (0.4px etc.
+// under DPR scaling), so strict equality made the scroll-up edge unreachable.
+const EDGE_SLACK = 3
+
+function currentScrollTop() {
+  return (
+    window.scrollY ||
+    document.scrollingElement?.scrollTop ||
+    document.documentElement.scrollTop ||
+    0
+  )
+}
 function atTop() {
-  // Tolerance matters: browsers settle scroll at fractional offsets (0.4px
-  // etc. under DPR scaling), and a strict <= 0 made scroll-up swaps dead on
-  // those — while scroll-down kept working via atBottom's slack.
-  return (window.scrollY || document.documentElement.scrollTop || 0) <= 2
+  return currentScrollTop() <= EDGE_SLACK
 }
 function atBottom() {
-  const scrollTop = window.scrollY || document.documentElement.scrollTop || 0
-  const viewport = window.innerHeight
-  const docHeight = Math.max(
-    document.documentElement.scrollHeight,
-    document.body.scrollHeight,
-  )
-  return scrollTop + viewport >= docHeight - 2
+  const el = document.scrollingElement || document.documentElement
+  const docHeight = Math.max(el.scrollHeight, document.body.scrollHeight)
+  return currentScrollTop() + window.innerHeight >= docHeight - EDGE_SLACK
 }
 
 // Wheel deltas arrive in different units per browser: Chromium reports
@@ -165,30 +174,48 @@ export function useScrollNav() {
   }
 
   function onWheel(e) {
-    if (scrollLocked.value || reducedMotion()) return
+    if (reducedMotion()) return
+
+    // While a swap animation plays, swallow everything — including the
+    // inertial tail of the gesture that triggered it — so it can't queue a
+    // second swap or leak into browser history navigation.
+    if (scrollLocked.value) {
+      e.preventDefault()
+      return
+    }
+
+    // Horizontal / tilt-wheel is never used here. Eat it so the browser can't
+    // turn it into back/forward history navigation (the mb4/mb5 gesture).
+    if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+      e.preventDefault()
+      return
+    }
 
     const dy = normalizedDeltaY(e)
     if (Math.abs(dy) < 1) return
 
-    const wantsRight = dy > 0
-    const wantsLeft = dy < 0
-    const dir = wantsRight ? 1 : -1
+    const dir = dy > 0 ? 1 : -1
     const intent = intentFor(dir)
 
-    // Edge check: for PAGE intent we need to be at the document scroll edge
-    // (so internal scrolling in a long page isn't hijacked). STEP intent
-    // applies anywhere — the host page is rendering a deck, not normal
-    // scrolling content, so it always wants the wheel.
+    // For PAGE intent we only act at the document scroll edge, so a long page
+    // (Contact) scrolls normally in its middle. Away from the edge, hand the
+    // wheel back to the browser and reset our accumulator. STEP intent applies
+    // anywhere — the host page is a deck, not scrolling content.
     if (intent === 'page') {
-      const edgeReady =
-        (wantsRight && atBottom()) || (wantsLeft && atTop())
-      if (!edgeReady) {
+      const atEdge = (dir > 0 && atBottom()) || (dir < 0 && atTop())
+      if (!atEdge) {
         if (accum !== 0) setAccum(0, 'page')
         lastDir = 0
         lastIntent = 'page'
         return
       }
     }
+
+    // We own this gesture now (step nav, or page nav sitting at an edge).
+    // Prevent default on EVERY owned event — not just at the threshold — so
+    // the browser never bounces, scroll-chains, or navigates history while
+    // the user is charging a swap.
+    e.preventDefault()
 
     // Reverse direction OR intent change resets the accumulator.
     if (dir !== lastDir || intent !== lastIntent) {
@@ -202,7 +229,6 @@ export function useScrollNav() {
     scheduleDecay()
 
     if (Math.abs(accum) >= WHEEL_THRESHOLD) {
-      e.preventDefault()
       if (intent === 'step') triggerStep(dir)
       else triggerPage(dir)
     }

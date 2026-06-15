@@ -23,9 +23,10 @@ html, body {
   font-family: var(--font-sans);
   font-weight: 300;
   overflow-x: hidden;
-  /* Swipe-down at the page top must charge the page swap, not trigger the
-     browser's pull-to-refresh / rubber-band. */
-  overscroll-behavior-y: none;
+  /* Both axes locked: y stops pull-to-refresh / rubber-band at the page top;
+     x stops the horizontal-swipe (and tilt-wheel) browser back/forward
+     gesture from firing while the user is charging a page swap. */
+  overscroll-behavior: none;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }

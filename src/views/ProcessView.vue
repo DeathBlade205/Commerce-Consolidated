@@ -149,12 +149,15 @@ onBeforeUnmount(() => {
 }
 
 /* Conveyor stage. Pairs slide horizontally through it; overflow clips the
-   one that's leaving. */
+   one that's leaving. The boxes are a restrained fixed height and the stage
+   floats to the vertical centre of the gap between the heading and the bottom
+   bar (margin:auto in the flex column) — flex:1 used to stretch them
+   full-height, which read as oversized. */
 .step-stage {
   position: relative;
-  flex: 1;
-  min-height: 420px;
   width: 100%;
+  height: clamp(260px, 42vh, 360px);
+  margin: auto 0;
   overflow: hidden;
 }
 
@@ -288,9 +291,11 @@ onBeforeUnmount(() => {
   }
 
   /* Mobile: the pair stacks vertically — marker on top regardless of side —
-     but the conveyor slide stays; the pair still moves as one unit. */
+     but the conveyor slide stays; the pair still moves as one unit. Drop the
+     fixed height + centring so the stacked cards size to content. */
   .step-stage {
-    min-height: 0;
+    height: auto;
+    margin: 0;
   }
 
   .step-pair,
