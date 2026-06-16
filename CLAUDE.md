@@ -20,7 +20,7 @@ The aesthetic is **noir-typographic with a flashlight metaphor**. Text sits at n
 User intent (from conversation):
 - Restrained, high-craft, studio-grade — not flashy agency
 - Founded **2026** (MMXXVI)
-- Bilingual EN / 中 (UI-only toggle today; real i18n later)
+- Bilingual EN / 中 — real i18n (see i18n section); Chinese strings are DeepL-sourced
 - "Do not overload area with text or information" — strip clutter aggressively
 - Animations: **threshold-triggered, full-play** — never gradual / scroll-position-tied
 - Logo is placeholder ("I'll work on logo later")
@@ -63,6 +63,12 @@ src/
     useScrollNav.js                # ★ Central nav engine. See "Scroll/keyboard navigation" below.
     useFinePointer.js              # hasFinePointer() — (hover:hover)+(pointer:fine) media check.
                                    #   Single source of truth for cursor/flashlight device gating.
+    useI18n.js                     # Lightweight i18n (no dep): reactive locale + t(path) over
+                                   #   i18n/messages.js. zh falls back to en per-key. Persists to
+                                   #   localStorage, sets <html lang>. NavBar flips the locale.
+  i18n/
+    messages.js                    # en (source of truth) + zh (DeepL-generated, target ZH). Brand
+                                   #   terms / social proper nouns / handles are NOT here.
     useBootReveal.js               # bootDone ref + markBootRevealDone(). Pages gate their entry
                                    #   choreography on it (HomeView waits for the boot ripple).
   directives/
@@ -184,10 +190,12 @@ Layout: heading on top, then a `.step-stage` (relative, overflow hidden) holding
 
 **Conveyor animation:** the pair is keyed by `currentStep` inside a `<Transition>`; advancing slides the whole outgoing pair off to the LEFT while the new pair slides in from the RIGHT (`step-next`), stepping back plays the mirror (`step-prev`, direction tracked in `stepDir`). `.step-pair--flip` (`flex-direction: row-reverse`) alternates which side the small marker sits on per step. Pairs are absolute against the stage on desktop so cards fill its height; mobile reverts them to in-flow stacks with the leaving pair absolute during the slide.
 
-Steps:
-- Step 1 (Brief) — `side: 'left'` (marker left, body right)
-- Step 2 (Design) — `side: 'right'` (marker right, body left)
-- Step 3 (Build & Launch) — `side: 'left'`
+Steps (content lives in `i18n/messages.js` `process.steps[]`; only `number` + `side` are local layout meta in the view):
+- Step 1 (The Brief) — `side: 'left'`, emphasis word **considered** (用心)
+- Step 2 (Refinement) — `side: 'right'`, emphasis word **consolidated** (整合)
+- Step 3 (Build & Launch) — `side: 'left'`, emphasis word **collaborative** (协作)
+
+The heading "A studio for *{word}* commerce." swaps its emphasis word per step (cross-fades via a `word-fade` Transition, `mode=out-in`). `currentData` is a computed over `t(\`process.steps.${i}.…\`)` so it's reactive to both step and locale.
 
 A `.step-dots` indicator (one dot per step, current lit) sits under the stage inside the centred `.step-deck` wrapper — it's the swipe affordance on touch and taps jump directly via `setStep`. Dots carry a 32px transparent hit area around a 7px `::before` visual.
 
@@ -197,11 +205,11 @@ Mobile (`<880px`) collapses the row to a vertical stack — slots become static,
 
 ### ContactView (`/contact`)
 - `PageEdgeHint` at the top — `direction="up"`, `to="/"`, label `Home`. Clickable; reinforces that scroll-up returns Home.
-- Section label, big serif heading ("Tell us how you'll *change* the world."), intro paragraph.
-- Contact grid with 4 blocks: New Business email, Studio address, Press email, Elsewhere (WeChat / X / Instagram / LinkedIn / Email icons).
-- Footer copyright line.
+- Section label, big serif heading ("Tell us how you'll change the *world*." — emphasis on **world**), intro paragraph.
+- Contact methods row: each is a logo tile (icon in a circle) with the handle underneath, the whole tile a shortcut link (mailto / social profile). Handles are PLACEHOLDERS. Email/WeChat stay in-page; http(s) links open in a new tab.
+- Footer: copyright (brand, untranslated) + rights.
 
-Still uses the document scroll for content (sections are tall). `useScrollNav` detects `atTop()` for the scroll-up-to-Home swap.
+**Single-viewport now (changed):** Contact was a tall document-scroll page, which hid the details below the fold behind `v-reveal` (opacity 0) — users reported "details gone / can't scroll". It's now a centred single-viewport page like Home/Process (`min-height: 100svh`, `.contact__body` flex-centred between the edge hint and footer), no `v-reveal`, so every detail is visible at once. On desktop it fits exactly (no scroll); on small phones it may scroll a little (document scroll still allowed). `useScrollNav` `atTop()` handles scroll-up-to-Home.
 
 ---
 
@@ -221,7 +229,7 @@ Both use `mix-blend-mode: difference` so they invert against any background.
 Devices without a hover-capable fine pointer render nothing (no pointer to indicate).
 
 ### `NavBar.vue` — fixed top
-Left: compact `LogoMark size=42` linking to `/`. Right: sliding EN / 中 language switch — both segments visible at all times; the selected one flex-grows and fills with the bright pill background; the other shrinks to a 30px chip. Flex transition (420ms) animates the swap. Currently UI-only (no real i18n).
+Left: compact `LogoMark size=42` linking to `/`. Right: sliding EN / 中 language switch — both segments visible at all times; the selected one flex-grows and fills with the bright pill background; the other shrinks to a 30px chip. Flex transition (420ms) animates the swap. Drives the real i18n locale via `useI18n().setLocale` (`en` / `zh`).
 
 User explicitly **removed** the `PROCESS` / `CONTACT` links from the top nav per "already at the bottom, redundant at top."
 
@@ -326,7 +334,8 @@ Atmospheric chrome. Fixed-position, low-opacity. Don't touch unless you want the
 
 ## Open / future work
 
-- **i18n**: language toggle is UI-only. Wire to a real i18n library (vue-i18n) when content is ready.
+- **i18n**: DONE — custom `useI18n` + `i18n/messages.js`. English is the source of truth; Chinese was generated via the DeepL API (target ZH). To re-translate after editing English, re-run the DeepL pass (the generator lives outside the repo). The three Process emphasis words (用心/整合/协作) and the heading scaffolding were hand-set because single adjectives translate poorly out of context.
+- **Contact handles**: the email/WeChat/X/Instagram/LinkedIn handles in `ContactView.vue` are PLACEHOLDERS — need the real ones.
 - **Logo**: current LogoMark is placeholder per user. They will redo it.
 - **Contact content**: emails, address, social hrefs are placeholder. Need real values.
 - **Step content**: copy in `processSteps` is decent draft but not finalised.

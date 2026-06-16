@@ -3,9 +3,11 @@
 // where the scroll-trigger swap is available. Used at the BOTTOM of Process
 // (scroll down → Home) and the TOP of Contact (scroll up → Home). Clicking
 // the hint jumps directly via the router.
+import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
+import { useI18n } from '../composables/useI18n.js'
 
-defineProps({
+const props = defineProps({
   to: { type: String, required: true },
   label: { type: String, required: true },
   /** 'up' (sits at the top of the page) | 'down' (sits at the bottom) */
@@ -15,11 +17,14 @@ defineProps({
     validator: (v) => ['up', 'down'].includes(v),
   },
 })
+
+const { t } = useI18n()
+const cue = computed(() => t(props.direction === 'up' ? 'common.scrollUp' : 'common.scrollDown'))
 </script>
 
 <template>
   <RouterLink :to="to" class="edge-hint" :class="`edge-hint--${direction}`">
-    <span class="edge-hint__cue">scroll {{ direction }}</span>
+    <span class="edge-hint__cue">{{ cue }}</span>
     <span class="edge-hint__inner">
       <span v-if="direction === 'up'" class="edge-hint__arrow" aria-hidden="true">↑</span>
       <span class="edge-hint__label">{{ label }}</span>

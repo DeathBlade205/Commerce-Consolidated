@@ -9,10 +9,16 @@
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useScrollState, ORDERED_PATHS } from '../composables/useScrollNav.js'
+import { useI18n } from '../composables/useI18n.js'
 
 const route = useRoute()
 const router = useRouter()
 const { scrollCharge } = useScrollState()
+const { t } = useI18n()
+
+// Map a page path to its i18n nav label.
+const NAV_KEY = { '/process': 'nav.process', '/': 'nav.home', '/contact': 'nav.contact' }
+const labelFor = (page) => t(NAV_KEY[page.path] || 'nav.home')
 
 const currentX = computed(() => route.meta?.x ?? 0)
 
@@ -49,7 +55,7 @@ function navigate(path) {
       type="button"
       class="page-progress__item"
       :class="{ 'is-current': page.x === currentX }"
-      :aria-label="`Go to ${page.label}`"
+      :aria-label="`Go to ${labelFor(page)}`"
       :aria-current="page.x === currentX ? 'page' : undefined"
       @click="navigate(page.path)"
     >
@@ -62,7 +68,7 @@ function navigate(path) {
           }"
         />
       </span>
-      <span class="page-progress__label">{{ page.label }}</span>
+      <span class="page-progress__label">{{ labelFor(page) }}</span>
     </button>
   </nav>
 </template>

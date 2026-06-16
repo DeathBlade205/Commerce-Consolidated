@@ -5,8 +5,10 @@ import FlashlightReveal from '../components/FlashlightReveal.vue'
 import LogoMark from '../components/LogoMark.vue'
 import { hasFinePointer } from '../composables/useFinePointer.js'
 import { useBootReveal } from '../composables/useBootReveal.js'
+import { useI18n } from '../composables/useI18n.js'
 
 const { bootDone } = useBootReveal()
+const { t } = useI18n()
 
 // `entered` flips from false → true on the next animation frame after mount.
 // Elements have their final visible state by default; while `entered` is false
@@ -157,13 +159,13 @@ onBeforeUnmount(() => {
              annotation). One short line stating what the studio does. -->
         <div class="subtitle enter" style="--enter-delay: 520ms;">
           <FlashlightReveal :radius="240">
-            <span class="subtitle-text">Digital practice. Web, brand, marketing.</span>
+            <span class="subtitle-text">{{ t('home.subtitle') }}</span>
           </FlashlightReveal>
         </div>
 
         <div class="hint enter enter--3">
           <FlashlightReveal :radius="220">
-            <span class="hint-text">use cursor to look around</span>
+            <span class="hint-text">{{ t('home.hint') }}</span>
           </FlashlightReveal>
         </div>
       </div>
@@ -195,24 +197,24 @@ onBeforeUnmount(() => {
             <span class="hero-nav__arrow" aria-hidden="true">
               <span class="arrow-h">←</span><span class="arrow-v">↑</span>
             </span>
-            <span class="hero-nav__label">Process</span>
+            <span class="hero-nav__label">{{ t('nav.process') }}</span>
           </span>
         </FlashlightReveal>
         <FlashlightReveal :radius="160">
-          <span class="hero-nav__cue">scroll up</span>
+          <span class="hero-nav__cue">{{ t('common.scrollUp') }}</span>
         </FlashlightReveal>
       </RouterLink>
       <RouterLink to="/contact" class="hero-nav__link hero-nav__link--right">
         <FlashlightReveal :radius="220">
           <span class="hero-nav__inner">
-            <span class="hero-nav__label">Contact</span>
+            <span class="hero-nav__label">{{ t('nav.contact') }}</span>
             <span class="hero-nav__arrow" aria-hidden="true">
               <span class="arrow-h">→</span><span class="arrow-v">↓</span>
             </span>
           </span>
         </FlashlightReveal>
         <FlashlightReveal :radius="160">
-          <span class="hero-nav__cue">scroll down</span>
+          <span class="hero-nav__cue">{{ t('common.scrollDown') }}</span>
         </FlashlightReveal>
       </RouterLink>
     </nav>

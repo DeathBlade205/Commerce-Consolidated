@@ -12,39 +12,36 @@
 // the next ones. Stepping back plays the same slide mirrored.
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { registerStepHost } from '../composables/useScrollNav.js'
+import { useI18n } from '../composables/useI18n.js'
 
-const processSteps = [
-  {
-    number: '01',
-    title: 'Brief',
-    duration: 'Week 1',
-    description:
-      'We meet, we listen, we write back what we heard. No proposal goes out until both sides have read the same problem.',
-    side: 'left',
-  },
-  {
-    number: '02',
-    title: 'Design',
-    duration: 'Weeks 2–5',
-    description:
-      'Direction, refinement, decisions. Fewer rounds, longer ones. The system is set in this phase, not painted on later.',
-    side: 'right',
-  },
-  {
-    number: '03',
-    title: 'Build & Launch',
-    duration: 'Weeks 4–12',
-    description:
-      'Production happens in parallel with late-stage design. Handover, documentation, and training fold into the last two weeks.',
-    side: 'left',
-  },
+const { t } = useI18n()
+
+// Layout-only meta — the marker number + which side the small card sits on.
+// All copy (title, emphasis word, duration, body) comes from i18n so it
+// localises. The heading's emphasis word changes per step (the signature).
+const stepMeta = [
+  { number: '01', side: 'left' },
+  { number: '02', side: 'right' },
+  { number: '03', side: 'left' },
 ]
 
 const currentStep = ref(0)
 // +1 = advancing (slide right→left), -1 = stepping back (mirrored).
 const stepDir = ref(1)
 
-const currentData = computed(() => processSteps[currentStep.value])
+// Reactive to both currentStep and locale (t reads the locale ref).
+const currentData = computed(() => {
+  const i = currentStep.value
+  const m = stepMeta[i]
+  return {
+    number: m.number,
+    side: m.side,
+    title: t(`process.steps.${i}.title`),
+    word: t(`process.steps.${i}.word`),
+    duration: t(`process.steps.${i}.duration`),
+    body: t(`process.steps.${i}.body`),
+  }
+})
 
 function setStep(n) {
   stepDir.value = n >= currentStep.value ? 1 : -1
@@ -52,7 +49,7 @@ function setStep(n) {
 }
 
 const unregister = registerStepHost({
-  count: processSteps.length,
+  count: stepMeta.length,
   getCurrentStep: () => currentStep.value,
   setStep,
 })
@@ -68,7 +65,7 @@ function onKey(e) {
 
   if (e.key === 'ArrowDown' || e.key === ' ') {
     e.preventDefault()
-    const next = Math.min(currentStep.value + 1, processSteps.length - 1)
+    const next = Math.min(currentStep.value + 1, stepMeta.length - 1)
     if (next !== currentStep.value) setStep(next)
   } else if (e.key === 'ArrowUp') {
     e.preventDefault()
@@ -89,8 +86,14 @@ onBeforeUnmount(() => {
 
 <template>
   <main class="process-page">
+    <!-- The emphasis word changes per step (considered → consolidated →
+         collaborative) and cross-fades on step change. -->
     <h1 class="process-heading">
-      A studio for <em>considered</em> commerce.
+      {{ t('process.headingPre') }}
+      <Transition name="word-fade" mode="out-in">
+        <em :key="currentStep">{{ currentData.word }}</em>
+      </Transition>
+      {{ t('process.headingPost') }}
     </h1>
 
     <!-- Deck = stage + step indicator, centred as one unit between the heading
@@ -108,11 +111,11 @@ onBeforeUnmount(() => {
             :class="{ 'step-pair--flip': currentData.side === 'right' }"
           >
             <article class="step-card step-card--marker">
-              <p class="label step-card__label">Step {{ currentData.number }}</p>
+              <p class="label step-card__label">{{ t('process.stepWord') }} {{ currentData.number }}</p>
               <h3 class="step-card__title">{{ currentData.title }}</h3>
             </article>
             <article class="step-card step-card--body">
-              <p class="step-card__desc">{{ currentData.description }}</p>
+              <p class="step-card__desc">{{ currentData.body }}</p>
               <p class="label step-card__duration">{{ currentData.duration }}</p>
             </article>
           </div>
@@ -121,14 +124,14 @@ onBeforeUnmount(() => {
 
       <!-- Step indicator: shows there's a deck to move through, and taps jump
            directly. On touch this is the swipe affordance. -->
-      <nav class="step-dots" aria-label="Process steps">
+      <nav class="step-dots" :aria-label="t('process.stepsAria')">
         <button
-          v-for="(s, i) in processSteps"
+          v-for="(s, i) in stepMeta"
           :key="s.number"
           type="button"
           class="step-dot"
           :class="{ 'is-active': i === currentStep }"
-          :aria-label="`Go to step ${s.number}: ${s.title}`"
+          :aria-label="`${t('process.goToStep')} ${s.number}`"
           :aria-current="i === currentStep ? 'step' : undefined"
           @click="setStep(i)"
         />
@@ -165,6 +168,17 @@ onBeforeUnmount(() => {
 .process-heading em {
   font-style: italic;
   color: var(--grey-300);
+}
+
+/* The emphasis word cross-fades when the step changes (opacity only — keeps
+   the inline flow intact, no layout shift). */
+.word-fade-enter-active,
+.word-fade-leave-active {
+  transition: opacity 260ms ease;
+}
+.word-fade-enter-from,
+.word-fade-leave-to {
+  opacity: 0;
 }
 
 /* Deck floats to the vertical centre of the gap between the heading and the

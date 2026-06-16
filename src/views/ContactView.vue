@@ -1,153 +1,120 @@
 <script setup>
+// Contact: a single-viewport page (like Home/Process) — no long document
+// scroll, so the details can never be "below the fold and unreachable".
+// Contact methods are shown as a logo with the handle underneath; the whole
+// tile is a shortcut (mailto / social profile).
+//
+// Handles below are PLACEHOLDERS — swap in the real ones.
 import PageEdgeHint from '../components/PageEdgeHint.vue'
+import { useI18n } from '../composables/useI18n.js'
 
-const blocks = [
-  {
-    label: 'New Business',
-    content: 'hello@commerceconsolidated.com',
-    type: 'email',
-    note: 'For project enquiries and proposals.',
-  },
-  {
-    label: 'Studio',
-    content: ['Level 3, 24 Bridge Street', 'Sydney NSW 2000'],
-    type: 'address',
-    note: 'By appointment only.',
-  },
-  {
-    label: 'Press & Speaking',
-    content: 'press@commerceconsolidated.com',
-    type: 'email',
-    note: 'Media inquiries and event requests.',
-  },
-  {
-    label: 'Elsewhere',
-    type: 'icons',
-    icons: [
-      { id: 'wechat',    label: 'WeChat',    href: '#' },
-      { id: 'x',         label: 'X',         href: '#' },
-      { id: 'instagram', label: 'Instagram', href: '#' },
-      { id: 'linkedin',  label: 'LinkedIn',  href: '#' },
-      { id: 'email',     label: 'Email',     href: 'mailto:hello@commerceconsolidated.com' },
-    ],
-  },
+const { t } = useI18n()
+
+const methods = [
+  { id: 'email',     handle: 'hello@commerceconsolidated.com', href: 'mailto:hello@commerceconsolidated.com' },
+  { id: 'wechat',    handle: 'CommerceConsolidated',           href: '#' },
+  { id: 'x',         handle: '@commercecons',                  href: 'https://x.com/commercecons' },
+  { id: 'instagram', handle: '@commerce.consolidated',         href: 'https://instagram.com/commerce.consolidated' },
+  { id: 'linkedin',  handle: 'Commerce Consolidated',          href: 'https://www.linkedin.com/company/commerce-consolidated' },
 ]
+
+// External links open in a new tab; mailto / wechat stay in-page.
+const isExternal = (href) => href.startsWith('http')
 </script>
 
 <template>
   <main class="contact">
+    <!-- Edge hint: from Contact, scrolling up at the top swaps to Home. -->
+    <PageEdgeHint :to="'/'" :label="t('edge.home')" direction="up" />
 
-    <!-- Edge hint: from Contact, scrolling up at the top swaps to Home.
-         Also clickable as a direct nav. -->
-    <PageEdgeHint to="/" label="Home" direction="up" />
+    <div class="contact__body">
+      <p class="label label--lg section-label">— {{ t('contact.label') }}</p>
 
-    <p v-reveal class="label label--lg section-label">— Contact</p>
+      <h1 class="heading">
+        {{ t('contact.headingPre') }} <em>{{ t('contact.headingEm') }}</em>{{ t('contact.headingPost') }}
+      </h1>
 
-    <h1 v-reveal="{ delay: 100 }" class="heading">
-      Tell us how you'll <em>change</em> the world.
-    </h1>
+      <p class="intro">{{ t('contact.intro') }}</p>
 
-    <p v-reveal="{ delay: 280 }" class="intro">
-      New project briefs are reviewed every Friday. We respond to everything
-      within two working days, including "no".
-    </p>
-
-    <div class="grid-wrap">
-      <div class="contact-grid">
-        <div
-          v-for="(b, i) in blocks"
-          :key="b.label"
-          v-reveal="{ delay: i * 140 }"
-          class="block"
+      <!-- Each method: logo on top, handle underneath, the whole tile clickable. -->
+      <nav class="methods" aria-label="Contact methods">
+        <a
+          v-for="m in methods"
+          :key="m.id"
+          :href="m.href"
+          class="method"
+          :target="isExternal(m.href) ? '_blank' : undefined"
+          :rel="isExternal(m.href) ? 'noopener' : undefined"
+          :aria-label="m.handle"
         >
-          <p class="label block-label">{{ b.label }}</p>
-
-          <template v-if="b.type === 'email'">
-            <a :href="`mailto:${b.content}`" class="contact-serif">{{ b.content }}</a>
-            <p class="muted">{{ b.note }}</p>
-          </template>
-
-          <template v-else-if="b.type === 'address'">
-            <div class="contact-serif address">
-              <span v-for="line in b.content" :key="line">{{ line }}</span>
-            </div>
-            <p class="muted">{{ b.note }}</p>
-          </template>
-
-          <template v-else-if="b.type === 'icons'">
-            <div class="icon-links">
-              <a
-                v-for="ic in b.icons"
-                :key="ic.id"
-                :href="ic.href"
-                class="icon-link"
-                :aria-label="ic.label"
-                :title="ic.label"
-              >
-                <!-- WeChat: rounded square with two smile/dots stylised -->
-                <svg v-if="ic.id === 'wechat'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <path d="M8.5 4C5.46 4 3 6.13 3 8.75c0 1.5.77 2.84 1.99 3.71L4.4 14l2.2-1.16c.6.13 1.24.2 1.9.2.34 0 .68-.02 1-.06" />
-                  <path d="M21 14.3c0-2.32-2.18-4.2-4.87-4.2s-4.88 1.88-4.88 4.2c0 2.33 2.19 4.2 4.88 4.2.5 0 .98-.06 1.42-.17l1.99 1.07-.56-1.7c1.2-.78 2.02-1.96 2.02-3.4Z" />
-                  <circle cx="6.6" cy="8.4" r="0.6" fill="currentColor" />
-                  <circle cx="10.3" cy="8.4" r="0.6" fill="currentColor" />
-                  <circle cx="14.5" cy="13.7" r="0.5" fill="currentColor" />
-                  <circle cx="17.7" cy="13.7" r="0.5" fill="currentColor" />
-                </svg>
-                <!-- X (Twitter) -->
-                <svg v-else-if="ic.id === 'x'" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                  <path d="M17.53 3H20.5l-6.51 7.44L21.5 21h-6.05l-4.73-6.18L5.3 21H2.32l6.96-7.95L2 3h6.2l4.28 5.66L17.53 3Zm-1.06 16.2h1.64L7.6 4.7H5.84l10.63 14.5Z" />
-                </svg>
-                <!-- Instagram -->
-                <svg v-else-if="ic.id === 'instagram'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <rect x="3" y="3" width="18" height="18" rx="5" />
-                  <circle cx="12" cy="12" r="4" />
-                  <circle cx="17.5" cy="6.5" r="0.7" fill="currentColor" stroke="none" />
-                </svg>
-                <!-- LinkedIn -->
-                <svg v-else-if="ic.id === 'linkedin'" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                  <path d="M4.98 3.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5ZM3 9h4v12H3V9Zm6 0h3.84v1.64h.05c.53-.95 1.84-1.95 3.79-1.95 4.05 0 4.8 2.55 4.8 5.87V21h-4v-5.45c0-1.3-.03-2.97-1.86-2.97-1.87 0-2.15 1.4-2.15 2.87V21h-4V9Z" />
-                </svg>
-                <!-- Email -->
-                <svg v-else-if="ic.id === 'email'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <rect x="3" y="5" width="18" height="14" rx="2" />
-                  <path d="m3 7 9 7 9-7" />
-                </svg>
-              </a>
-            </div>
-          </template>
-        </div>
-      </div>
+          <span class="method__icon">
+            <svg v-if="m.id === 'wechat'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M8.5 4C5.46 4 3 6.13 3 8.75c0 1.5.77 2.84 1.99 3.71L4.4 14l2.2-1.16c.6.13 1.24.2 1.9.2.34 0 .68-.02 1-.06" />
+              <path d="M21 14.3c0-2.32-2.18-4.2-4.87-4.2s-4.88 1.88-4.88 4.2c0 2.33 2.19 4.2 4.88 4.2.5 0 .98-.06 1.42-.17l1.99 1.07-.56-1.7c1.2-.78 2.02-1.96 2.02-3.4Z" />
+              <circle cx="6.6" cy="8.4" r="0.6" fill="currentColor" />
+              <circle cx="10.3" cy="8.4" r="0.6" fill="currentColor" />
+              <circle cx="14.5" cy="13.7" r="0.5" fill="currentColor" />
+              <circle cx="17.7" cy="13.7" r="0.5" fill="currentColor" />
+            </svg>
+            <svg v-else-if="m.id === 'x'" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M17.53 3H20.5l-6.51 7.44L21.5 21h-6.05l-4.73-6.18L5.3 21H2.32l6.96-7.95L2 3h6.2l4.28 5.66L17.53 3Zm-1.06 16.2h1.64L7.6 4.7H5.84l10.63 14.5Z" />
+            </svg>
+            <svg v-else-if="m.id === 'instagram'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="3" y="3" width="18" height="18" rx="5" />
+              <circle cx="12" cy="12" r="4" />
+              <circle cx="17.5" cy="6.5" r="0.7" fill="currentColor" stroke="none" />
+            </svg>
+            <svg v-else-if="m.id === 'linkedin'" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M4.98 3.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5ZM3 9h4v12H3V9Zm6 0h3.84v1.64h.05c.53-.95 1.84-1.95 3.79-1.95 4.05 0 4.8 2.55 4.8 5.87V21h-4v-5.45c0-1.3-.03-2.97-1.86-2.97-1.87 0-2.15 1.4-2.15 2.87V21h-4V9Z" />
+            </svg>
+            <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="3" y="5" width="18" height="14" rx="2" />
+              <path d="m3 7 9 7 9-7" />
+            </svg>
+          </span>
+          <span class="method__handle">{{ m.handle }}</span>
+        </a>
+      </nav>
     </div>
 
-    <footer v-reveal class="footer">
+    <footer class="footer">
       <span class="label">© Commerce Consolidated MMXXVI</span>
-      <span class="label">All rights reserved</span>
+      <span class="label">{{ t('contact.rights') }}</span>
     </footer>
-
   </main>
 </template>
 
 <style scoped>
 .contact {
-  padding: 140px 48px 80px;
+  min-height: 100vh;
+  min-height: 100svh;
   max-width: 1200px;
   margin: 0 auto;
+  padding: 96px 48px 72px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Centred block between the edge hint (top) and footer (bottom). */
+.contact__body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .section-label {
-  margin-bottom: 32px;
-  padding-top: 16px;
-  border-top: 1px solid var(--hairline);
+  margin-bottom: 24px;
 }
 
 .heading {
   font-family: var(--font-serif);
-  font-size: clamp(56px, 8vw, 120px);
-  line-height: 0.95;
-  max-width: 14ch;
+  font-size: clamp(40px, 6vw, 84px);
+  line-height: 0.98;
+  max-width: 16ch;
   color: var(--grey-100);
   letter-spacing: -0.02em;
-  margin-bottom: 80px;
+  margin: 0 0 28px;
 }
 
 .heading em {
@@ -160,122 +127,102 @@ const blocks = [
   color: var(--grey-300);
   max-width: 52ch;
   line-height: 1.7;
-  margin-bottom: 80px;
+  margin: 0 0 56px;
 }
 
-.grid-wrap {
-  border-top: 1px solid var(--hairline);
-  padding-top: 48px;
-}
-
-.contact-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 80px;
-}
-
-.block {
+/* Contact methods: logo tile + handle underneath, the whole thing clickable. */
+.methods {
   display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.block-label {
-  letter-spacing: 0.28em;
-  margin-bottom: 8px;
-}
-
-.contact-serif {
-  font-family: var(--font-serif);
-  font-size: 28px;
-  line-height: 1.4;
-  color: var(--grey-100);
-  transition: color 0.3s ease;
-}
-
-.contact-serif:hover {
-  color: var(--grey-300);
-}
-
-.address {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.muted {
-  font-size: 14px;
-  color: var(--grey-500);
-  margin-top: 4px;
-}
-
-.icon-links {
-  display: flex;
-  gap: 18px;
-  margin-top: 12px;
   flex-wrap: wrap;
+  gap: clamp(24px, 4vw, 56px);
 }
 
-.icon-link {
+.method {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.method__icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
+  width: 64px;
+  height: 64px;
   color: var(--grey-300);
   border: 1px solid var(--hairline);
   border-radius: 999px;
   transition: color 0.25s ease, border-color 0.25s ease, transform 0.25s ease;
 }
 
-.icon-link svg {
-  width: 20px;
-  height: 20px;
+.method__icon svg {
+  width: 26px;
+  height: 26px;
 }
 
-.icon-link:hover {
+.method__handle {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--grey-500);
+  transition: color 0.25s ease;
+  text-align: center;
+  max-width: 22ch;
+  word-break: break-word;
+}
+
+.method:hover .method__icon {
   color: var(--grey-100);
   border-color: rgba(255, 255, 255, 0.32);
-  transform: translateY(-1px);
+  transform: translateY(-3px);
+}
+
+.method:hover .method__handle {
+  color: var(--grey-300);
 }
 
 .footer {
-  margin-top: 120px;
-  border-top: 1px solid var(--hairline);
-  padding-top: 32px;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  padding-top: 28px;
+  border-top: 1px solid var(--hairline);
 }
 
 @media (max-width: 880px) {
   .contact {
-    padding: 120px 24px 60px;
+    /* Let it scroll on small screens rather than clip — but the details now
+       sit high enough (centred block) that they're visible without scrolling
+       on most phones. */
+    min-height: 100svh;
+    padding: 88px 24px 56px;
   }
 
-  /* The desktop clamp bottoms out at 56px — still oversized on a phone. */
   .heading {
-    font-size: clamp(40px, 12vw, 56px);
-    margin-bottom: 56px;
+    font-size: clamp(36px, 11vw, 60px);
+    margin-bottom: 24px;
   }
 
   .intro {
-    margin-bottom: 56px;
+    margin-bottom: 40px;
   }
 
-  .contact-serif {
-    font-size: 22px;
-    word-break: break-word; /* long placeholder emails overflow 320px screens */
+  .methods {
+    gap: 28px 36px;
+    justify-content: flex-start;
   }
 
-  .contact-grid {
-    grid-template-columns: 1fr;
-    gap: 48px;
+  .method__icon {
+    width: 56px;
+    height: 56px;
   }
 
   .footer {
     flex-direction: column;
-    gap: 12px;
+    gap: 10px;
     align-items: flex-start;
   }
 }

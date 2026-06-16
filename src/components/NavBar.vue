@@ -1,17 +1,13 @@
 <script setup>
-import { ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import LogoMark from './LogoMark.vue'
+import { useI18n } from '../composables/useI18n.js'
 
-// UI-only language switch for now. Wire to i18n later — flipping `lang` just
-// drives the active segment of the switch. Per the sketch annotation
-// ("if you're swapping the positions, animate it"), this is a true sliding
-// segmented switch: the selected side widens + highlights, the unselected
-// side shrinks to a chip.
-const lang = ref('EN')
-function setLang(value) {
-  lang.value = value
-}
+// Real language switch: drives the global i18n locale (persisted, sets
+// <html lang>). Per the sketch annotation ("if you're swapping the positions,
+// animate it"), this is a true sliding segmented switch: the selected side
+// widens + highlights, the unselected side shrinks to a chip.
+const { locale, setLocale } = useI18n()
 </script>
 
 <template>
@@ -24,18 +20,18 @@ function setLang(value) {
       <button
         type="button"
         class="lang-switch__option"
-        :class="{ 'lang-switch__option--active': lang === 'EN' }"
+        :class="{ 'lang-switch__option--active': locale === 'en' }"
         role="radio"
-        :aria-checked="lang === 'EN'"
-        @click="setLang('EN')"
+        :aria-checked="locale === 'en'"
+        @click="setLocale('en')"
       >EN</button>
       <button
         type="button"
         class="lang-switch__option"
-        :class="{ 'lang-switch__option--active': lang === '中' }"
+        :class="{ 'lang-switch__option--active': locale === 'zh' }"
         role="radio"
-        :aria-checked="lang === '中'"
-        @click="setLang('中')"
+        :aria-checked="locale === 'zh'"
+        @click="setLocale('zh')"
       >中</button>
     </div>
   </nav>
