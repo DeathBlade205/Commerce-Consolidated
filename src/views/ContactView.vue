@@ -86,11 +86,18 @@ const isExternal = (href) => href.startsWith('http')
 
 <style scoped>
 .contact {
-  min-height: 100vh;
-  min-height: 100svh;
+  /* Fixed viewport height + overflow hidden = the document never scrolls, so
+     scroll-up ALWAYS charges the swap-to-Home immediately (atTop is always
+     true), consistent with Home/Process. A scrolling Contact created a dead
+     zone where scroll-up scrolled the page instead of navigating. Content is
+     kept compact below so it fits short laptops without clipping. Mobile
+     reverts to a normal scrolling page. */
+  height: 100vh;
+  height: 100svh;
+  overflow: hidden;
   max-width: 1200px;
   margin: 0 auto;
-  padding: 96px 48px 72px;
+  padding: 88px 48px 56px;
   display: flex;
   flex-direction: column;
 }
@@ -109,12 +116,12 @@ const isExternal = (href) => href.startsWith('http')
 
 .heading {
   font-family: var(--font-serif);
-  font-size: clamp(40px, 6vw, 84px);
-  line-height: 0.98;
+  font-size: clamp(34px, 4.4vw, 62px);
+  line-height: 1;
   max-width: 16ch;
   color: var(--grey-100);
   letter-spacing: -0.02em;
-  margin: 0 0 28px;
+  margin: 0 0 22px;
 }
 
 .heading em {
@@ -127,7 +134,7 @@ const isExternal = (href) => href.startsWith('http')
   color: var(--grey-300);
   max-width: 52ch;
   line-height: 1.7;
-  margin: 0 0 56px;
+  margin: 0 0 40px;
 }
 
 /* Contact methods: logo tile + handle underneath, the whole thing clickable. */
@@ -194,10 +201,12 @@ const isExternal = (href) => href.startsWith('http')
 
 @media (max-width: 880px) {
   .contact {
-    /* Let it scroll on small screens rather than clip — but the details now
-       sit high enough (centred block) that they're visible without scrolling
-       on most phones. */
+    /* Phones can't fit all five methods + heading in one viewport, so allow a
+       normal scrolling page here. Scroll-up-to-Home still works via atTop().
+       Details are no longer opacity-gated, so nothing is hidden. */
+    height: auto;
     min-height: 100svh;
+    overflow: visible;
     padding: 88px 24px 56px;
   }
 
