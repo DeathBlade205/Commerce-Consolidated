@@ -27,11 +27,11 @@ defineProps({
   display: block;
   user-select: none;
   object-fit: contain;
-  /* Soft white glow (a "light shadow") so the mark lifts off the near-black
-     backgrounds instead of sitting flat. drop-shadow follows the alpha shape,
-     so it haloes the mark itself. Two layers: a tight core + a wider bloom. */
+  /* Dark-grey halo hugging the mark's shape (drop-shadow follows the alpha),
+     so it highlights/separates the logo from the near-black background without
+     the harshness of a white glow. Tight ring + a softer outer bloom. */
   filter:
-    drop-shadow(0 0 8px rgba(255, 255, 255, 0.35))
-    drop-shadow(0 0 26px rgba(255, 255, 255, 0.15));
+    drop-shadow(0 0 5px rgba(110, 110, 110, 0.6))
+    drop-shadow(0 0 18px rgba(80, 80, 80, 0.4));
 }
 </style>
