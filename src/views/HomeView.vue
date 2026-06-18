@@ -516,6 +516,12 @@ onBeforeUnmount(() => {
     display: none;
   }
 
+  /* The big logo reads wrong stacked under the title on mobile — hide it
+     (the compact nav logo still represents the brand up top). */
+  .hero-logo {
+    display: none;
+  }
+
   .hero-stack {
     gap: 20px;
     align-items: center; /* center text under the title when stacked */
