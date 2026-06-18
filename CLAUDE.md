@@ -105,7 +105,8 @@ src/
     PageEdgeHint.vue               # Big "scroll up/down → [Label]" callout. Only used in ContactView (top).
     FlashlightReveal.vue           # Slot wrapper. Dim base + bright layer masked by radial gradient at cursor.
                                    #   `hidden` prop omits dim base (used for logo on Home).
-    LogoMark.vue                   # SVG CC monogram. `compact` prop strips dashed midline + EST·MMXXVI caption.
+    LogoMark.vue                   # <img> of assets/logo.png (the brand mark). `compact` prop kept for
+                                   #   API compat; same artwork at all sizes.
     GrainOverlay.vue               # Fixed SVG fractalNoise grain, mix-blend-mode: overlay.
     CornerMarks.vue                # Four fixed L-shaped corner brackets.
 ```
@@ -176,7 +177,7 @@ Single viewport hero. No document scroll (`overflow: hidden`). Layout:
 - `.hero-row` is a single flex row: `.hero-stack` (title + subtitle + hint), `.hero-divider` (1px × 240px), `.hero-logo`. `align-items: center` puts everything on one Y axis — no `position: absolute` games.
 - Title is two flex-column lines, both left-aligned (no staircase indent — user explicitly aligned them).
 - Subtitle and hint both crushed to `rgba(255,255,255,0.08)` dim — only readable when the flashlight is over them.
-- Logo is `LogoMark size=220` wrapped in `<FlashlightReveal hidden>` — fully invisible until the cursor passes. Has one-shot `flourish` on first load, then continuous `breath` cycle.
+- Logo is `LogoMark size=220` wrapped in `<FlashlightReveal hidden>` — fully invisible until the cursor passes. Wrapped in `<a class="logo-link">` that opens a past project in a new tab (`pastSites` array — PLACEHOLDER URLs). One-shot `flourish` on first load (cleared on animationend), and replays on **hover** via `.logo-link:hover .logo`. **No idle/breath animation** (removed — user found the drift distracting).
 - Bottom corner callouts (`← PROCESS` / `CONTACT →`) at `clamp(22px, 2.4vw, 34px)` with small `SCROLL UP` / `SCROLL DOWN` cues underneath. These are real RouterLinks too. **Mobile:** the arrows flip to vertical (`↑ PROCESS` / `CONTACT ↓`) to match the vertical swipe gesture — each arrow renders both glyphs (`.arrow-h` / `.arrow-v`) toggled by the 880px media query.
 
 User instructed: **removed** the eyebrow strap (`DIGITAL PRACTICE · SYDNEY · EST 2026`), the long mission paragraph, and the bottom meta strip (`Currently taking briefs` / Sydney coords) — all "clutter."
@@ -191,9 +192,9 @@ Layout: heading on top, then a `.step-stage` (relative, overflow hidden) holding
 **Conveyor animation:** the pair is keyed by `currentStep` inside a `<Transition>`; advancing slides the whole outgoing pair off to the LEFT while the new pair slides in from the RIGHT (`step-next`), stepping back plays the mirror (`step-prev`, direction tracked in `stepDir`). `.step-pair--flip` (`flex-direction: row-reverse`) alternates which side the small marker sits on per step. Pairs are absolute against the stage on desktop so cards fill its height; mobile reverts them to in-flow stacks with the leaving pair absolute during the slide.
 
 Steps (content lives in `i18n/messages.js` `process.steps[]`; only `number` + `side` are local layout meta in the view):
-- Step 1 (The Brief) — `side: 'left'`, emphasis word **considered** (用心)
-- Step 2 (Refinement) — `side: 'right'`, emphasis word **consolidated** (整合)
-- Step 3 (Build & Launch) — `side: 'left'`, emphasis word **collaborative** (协作)
+- Step 1 (The Brief) — `side: 'left'`, emphasis word **collaborative** (协作)
+- Step 2 (Refinement) — `side: 'right'`, emphasis word **considered** (用心)
+- Step 3 (Build & Launch) — `side: 'left'`, emphasis word **consolidated** (整合)
 
 The heading "A studio for *{word}* commerce." swaps its emphasis word per step (cross-fades via a `word-fade` Transition, `mode=out-in`). `currentData` is a computed over `t(\`process.steps.${i}.…\`)` so it's reactive to both step and locale.
 
@@ -256,7 +257,7 @@ Props:
 **Naming gotcha — `.reveal` is a global directive class.** The reveal directive uses `.reveal` + `.reveal.is-visible` (in `main.css`) which sets `opacity: 0` until visible. `FlashlightReveal`'s wrapper class is intentionally `.fl-root` (was `.reveal` originally, which silently hid all flashlight content). **Never** name any new class `.reveal` in component CSS.
 
 ### `LogoMark.vue`
-SVG CC monogram in an outlined square. `compact` prop strips the dashed midline + `EST · MMXXVI` caption (for use in the nav where the caption is sub-pixel noise). User said the logo is placeholder — they'll redo it later.
+Renders `<img>` of `src/assets/logo.png`. The supplied artwork (`Downloads/Logo.svg`) was a white circle on an OPAQUE black square (RGBA but all-opaque), positioned off-centre — it showed as a black box on the page. Processed with ImageMagick (luminance→alpha, trim, re-centre on a padded transparent square) into `logo.png`, so it drops onto the dark theme cleanly with no blend hacks. `compact` prop kept for API compatibility (NavBar passes it) but the same artwork is used everywhere.
 
 ### `GrainOverlay.vue` / `CornerMarks.vue`
 Atmospheric chrome. Fixed-position, low-opacity. Don't touch unless you want the page to feel different.
@@ -336,7 +337,8 @@ Atmospheric chrome. Fixed-position, low-opacity. Don't touch unless you want the
 
 - **i18n**: DONE — custom `useI18n` + `i18n/messages.js`. English is the source of truth; Chinese was generated via the DeepL API (target ZH). To re-translate after editing English, re-run the DeepL pass (the generator lives outside the repo). The three Process emphasis words (用心/整合/协作) and the heading scaffolding were hand-set because single adjectives translate poorly out of context.
 - **Contact handles**: the email/WeChat/X/Instagram/LinkedIn handles in `ContactView.vue` are PLACEHOLDERS — need the real ones.
-- **Logo**: current LogoMark is placeholder per user. They will redo it.
+- **Logo**: now `assets/logo.png` (processed from the user's supplied artwork). The artwork is essentially a plain white circle — if a more detailed / centred / transparent export is provided, drop it in and remove the ImageMagick step.
+- **Home logo links**: `pastSites` in HomeView is PLACEHOLDER URLs — needs the real past-project links (clicking the logo opens one at random in a new tab).
 - **Contact content**: emails, address, social hrefs are placeholder. Need real values.
 - **Step content**: copy in `processSteps` is decent draft but not finalised.
 - **Subtitle copy**: "Digital practice. Web, brand, marketing." was picked from a 3-option question. Easily swappable.

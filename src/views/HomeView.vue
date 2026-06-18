@@ -17,13 +17,29 @@ const { t } = useI18n()
 // animation leaves the element stuck at opacity 0.
 const entered = ref(false)
 const logoFlourish = ref(false)
-const logoBreath = ref(false)
 let sweepRaf = 0
 let sweepCancelled = false
 
 // No hover-capable pointer → no flashlight sweep (content is already fully
 // visible via FlashlightReveal's touch fallback).
 const isTouch = !hasFinePointer()
+
+// Past projects — clicking the logo opens one at random in a new tab.
+// PLACEHOLDERS: replace with the real past-site URLs.
+const pastSites = [
+  'https://example.com/project-one',
+  'https://example.com/project-two',
+  'https://example.com/project-three',
+]
+function openPastSite() {
+  const url = pastSites[Math.floor(Math.random() * pastSites.length)]
+  window.open(url, '_blank', 'noopener')
+}
+
+// The intro flourish plays once (logoFlourish class), then clears itself on
+// animationend so it doesn't conflict with the CSS :hover flourish. There is
+// no idle/breath animation — the logo only moves on the intro sweep and on
+// hover (see .logo-link:hover in the styles).
 
 function dispatchMove(x, y) {
   const ev = new MouseEvent('mousemove', {
@@ -57,10 +73,8 @@ function runIntroSweep() {
   let segIdx = 0
   let segStart = performance.now()
   let prev = waypoints[0]
-  // Trigger the logo flourish slightly before the sweep arrives there.
-  // Once the flourish finishes (~1.4s), switch the logo into its ongoing breath.
+  // Trigger the one-shot logo flourish slightly before the sweep arrives there.
   setTimeout(() => { logoFlourish.value = true }, segMs * 1.6)
-  setTimeout(() => { logoBreath.value = true }, segMs * 1.6 + 1400)
 
   function easeInOutCubic(t) {
     return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2
@@ -113,11 +127,9 @@ function beginEntry(cascade) {
   } else {
     entered.value = true
   }
-  if (isTouch) {
-    // No flourish path on touch — drop the logo straight into ambient breath
-    // after the entry settles.
-    setTimeout(() => { logoBreath.value = true }, cascade ? 1600 : 900)
-  } else {
+  // The flashlight intro sweep (which also fires the one-shot logo flourish)
+  // only runs on hover-capable devices; touch shows everything statically.
+  if (!isTouch) {
     setTimeout(runIntroSweep, cascade ? 500 : 300)
   }
 }
@@ -174,14 +186,24 @@ onBeforeUnmount(() => {
       <span class="hero-divider enter enter--3" aria-hidden="true" />
 
       <div class="hero-logo enter enter--3">
-        <div
-          class="logo"
-          :class="{ 'logo--flourish': logoFlourish, 'logo--breath': logoBreath }"
+        <a
+          class="logo-link"
+          :href="pastSites[0]"
+          target="_blank"
+          rel="noopener"
+          aria-label="View a past project"
+          @click.prevent="openPastSite"
         >
-          <FlashlightReveal hidden :radius="220">
-            <LogoMark :size="220" />
-          </FlashlightReveal>
-        </div>
+          <span
+            class="logo"
+            :class="{ 'logo--flourish': logoFlourish }"
+            @animationend="logoFlourish = false"
+          >
+            <FlashlightReveal hidden :radius="220">
+              <LogoMark :size="220" />
+            </FlashlightReveal>
+          </span>
+        </a>
       </div>
     </div>
 
@@ -433,25 +455,34 @@ onBeforeUnmount(() => {
   flex-shrink: 0;
 }
 
-/* Logo wrapper — flex flow handles vertical centering. The .logo child still
-   owns its own entry / flourish / breath transforms independently. */
+/* Logo wrapper — flex flow handles vertical centering. */
 .hero-logo {
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  pointer-events: none;
+  pointer-events: none; /* the link child re-enables pointer events */
+}
+
+/* Clickable logo — opens a past project in a new tab. Re-enables pointer
+   events (the wrapper disables them so the flashlight area doesn't block). */
+.logo-link {
+  pointer-events: auto;
+  display: inline-flex;
+  color: var(--grey-100);
 }
 
 .logo {
+  display: inline-flex;
   color: var(--grey-100);
   transform-origin: center;
   will-change: transform, filter;
 }
 
-/* Flourish: scale up + rotate slightly, then settle. Class is added when the
-   intro sweep reaches the logo. Layout positioning lives on the .hero-row
-   flex parent, so these transforms only need to handle the animation. */
-.logo--flourish {
+/* Flourish: scale up + rotate slightly, then settle. Plays once on the intro
+   sweep (.logo--flourish, cleared on animationend), and replays on every hover
+   via :hover below — no idle/breath animation, the logo is at rest otherwise. */
+.logo--flourish,
+.logo-link:hover .logo {
   animation: flourish 1400ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -462,20 +493,8 @@ onBeforeUnmount(() => {
   100% { transform: scale(1) rotate(0); }
 }
 
-/* Continuous breath after the flourish settles — keeps the logo alive without
-   competing with the title. ~7s cycle, very subtle range. */
-.logo--breath {
-  animation: breath 7s ease-in-out infinite;
-}
-
-@keyframes breath {
-  0%, 100% { transform: scale(1) rotate(0deg); }
-  50%      { transform: scale(1.022) rotate(0.6deg); }
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .logo--flourish,
-  .logo--breath {
+  .logo--flourish {
     animation: none;
   }
 }

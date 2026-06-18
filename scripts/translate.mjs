@@ -27,9 +27,9 @@ const OVERRIDE_ZH = {
   'process.headingPost': '商业而设的工作室。',
   'process.stepsAria': '流程步骤',
   'process.goToStep': '前往步骤',
-  'process.steps.0.word': '用心',
-  'process.steps.1.word': '整合',
-  'process.steps.2.word': '协作',
+  'process.steps.0.word': '协作',
+  'process.steps.1.word': '用心',
+  'process.steps.2.word': '整合',
   'contact.headingPost': '。',
 }
 

@@ -29,19 +29,19 @@ export const messages = {
       "steps": [
         {
           "title": "The Brief",
-          "word": "considered",
+          "word": "collaborative",
           "duration": "Week 1",
           "body": "Tell us about you, your company and your brand. We'll work with you to start the creation process, and look at some designs together. Nothing gets drafted until we're all on the same page."
         },
         {
           "title": "Refinement",
-          "word": "consolidated",
+          "word": "considered",
           "duration": "Weeks 2–5",
           "body": "We'll draft and make changes as many times as it takes until you're happy with the final product. Nothing gets finalised until everyone is happy."
         },
         {
           "title": "Build & Launch",
-          "word": "collaborative",
+          "word": "consolidated",
           "duration": "Weeks 4–12",
           "body": "Once the user experience is completed, we'll work together to set up the backend to ensure everything works from Day 1. Everything designed to best represent you first."
         }
@@ -83,19 +83,19 @@ export const messages = {
       "steps": [
         {
           "title": "项目简介",
-          "word": "用心",
+          "word": "协作",
           "duration": "第1周",
           "body": "请向我们介绍一下您、您的公司以及您的品牌。我们将与您共同开启创作过程，并一起探讨一些设计方案。在大家达成共识之前，我们不会着手进行任何设计。"
         },
         {
           "title": "优化",
-          "word": "整合",
+          "word": "用心",
           "duration": "第2–5周",
           "body": "我们会反复起草和修改，直到您对最终成果感到满意为止。在所有人都满意之前，任何内容都不会定稿。"
         },
         {
           "title": "构建与发布",
-          "word": "协作",
+          "word": "整合",
           "duration": "第4–12周",
           "body": "用户体验设计完成后，我们将通力合作搭建后端系统，确保网站从上线第一天起就能正常运行。所有设计都将以最能展现您的形象为首要考量。"
         }
