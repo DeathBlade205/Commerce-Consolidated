@@ -22,6 +22,10 @@ html, body {
   color: var(--grey-100);
   font-family: var(--font-sans);
   font-weight: 300;
+  /* Stop iOS/mobile from auto-inflating text (the usual cause of "fonts look
+     different on mobile") so phones render at the authored sizes like desktop. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
   overflow-x: hidden;
   /* Both axes locked: y stops pull-to-refresh / rubber-band at the page top;
      x stops the horizontal-swipe (and tilt-wheel) browser back/forward
