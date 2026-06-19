@@ -5,18 +5,24 @@
 // tile is a shortcut (mailto / social profile).
 //
 // Handles below are PLACEHOLDERS — swap in the real ones.
+import { computed } from 'vue'
 import PageEdgeHint from '../components/PageEdgeHint.vue'
 import { useI18n } from '../composables/useI18n.js'
 
 const { t } = useI18n()
 
+// `active: false` keeps the method in code (icon + wiring intact) but it isn't
+// rendered yet. Instagram/LinkedIn are parked here until those accounts exist —
+// flip `active` to true and set a real href to bring them back.
 const methods = [
-  { id: 'email',     handle: 'hello@commerceconsolidated.com', href: 'mailto:hello@commerceconsolidated.com' },
-  { id: 'wechat',    handle: 'CommerceConsolidated',           href: '#' },
-  { id: 'x',         handle: '@commercecons',                  href: 'https://x.com/commercecons' },
-  { id: 'instagram', handle: '@commerce.consolidated',         href: 'https://instagram.com/commerce.consolidated' },
-  { id: 'linkedin',  handle: 'Commerce Consolidated',          href: 'https://www.linkedin.com/company/commerce-consolidated' },
+  { id: 'email',     handle: 'hello@commerceconsolidated.com', href: 'mailto:hello@commerceconsolidated.com', active: true },
+  { id: 'wechat',    handle: 'CommerceConsolidated',           href: '#',                                     active: true },
+  { id: 'x',         handle: '@commercecons',                  href: 'https://x.com/commercecons',            active: true },
+  { id: 'instagram', handle: '@commerce.consolidated',         href: 'https://instagram.com/commerce.consolidated', active: false },
+  { id: 'linkedin',  handle: 'Commerce Consolidated',          href: 'https://www.linkedin.com/company/commerce-consolidated', active: false },
 ]
+
+const shownMethods = computed(() => methods.filter((m) => m.active))
 
 // External links open in a new tab; mailto / wechat stay in-page.
 const isExternal = (href) => href.startsWith('http')
@@ -39,7 +45,7 @@ const isExternal = (href) => href.startsWith('http')
       <!-- Each method: logo on top, handle underneath, the whole tile clickable. -->
       <nav class="methods" aria-label="Contact methods">
         <a
-          v-for="m in methods"
+          v-for="m in shownMethods"
           :key="m.id"
           :href="m.href"
           class="method"

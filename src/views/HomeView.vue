@@ -25,11 +25,9 @@ let sweepCancelled = false
 const isTouch = !hasFinePointer()
 
 // Past projects — clicking the logo opens one at random in a new tab.
-// PLACEHOLDERS: replace with the real past-site URLs.
+// Add more URLs here as projects ship.
 const pastSites = [
-  'https://example.com/project-one',
-  'https://example.com/project-two',
-  'https://example.com/project-three',
+  'https://switch-app1.vercel.app/',
 ]
 function openPastSite() {
   const url = pastSites[Math.floor(Math.random() * pastSites.length)]
