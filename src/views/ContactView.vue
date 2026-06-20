@@ -15,11 +15,11 @@ const { t } = useI18n()
 // rendered yet. Instagram/LinkedIn are parked here until those accounts exist —
 // flip `active` to true and set a real href to bring them back.
 const methods = [
-  { id: 'email',     handle: 'hello@commerceconsolidated.com', href: 'mailto:hello@commerceconsolidated.com', active: true },
-  { id: 'wechat',    handle: 'CommerceConsolidated',           href: '#',                                     active: true },
-  { id: 'x',         handle: '@commercecons',                  href: 'https://x.com/commercecons',            active: true },
-  { id: 'instagram', handle: '@commerce.consolidated',         href: 'https://instagram.com/commerce.consolidated', active: false },
-  { id: 'linkedin',  handle: 'Commerce Consolidated',          href: 'https://www.linkedin.com/company/commerce-consolidated', active: false },
+  { id: 'email',     handle: 'diederik.lubbers@gmail.com', href: 'mailto:diederik.lubbers@gmail.com', active: true },
+  { id: 'wechat',    handle: 'mrkiredeid',                 href: '#',                                 active: true },
+  { id: 'x',         handle: '@mrkiredeid',               href: 'https://x.com/mrkiredeid',          active: true },
+  { id: 'instagram', handle: '@commerce.consolidated',    href: 'https://instagram.com/commerce.consolidated', active: false },
+  { id: 'linkedin',  handle: 'Commerce Consolidated',     href: 'https://www.linkedin.com/company/commerce-consolidated', active: false },
 ]
 
 const shownMethods = computed(() => methods.filter((m) => m.active))
