@@ -84,8 +84,7 @@ const isExternal = (href) => href.startsWith('http')
     </div>
 
     <footer class="footer">
-      <span class="label">© Commerce Consolidated MMXXVI</span>
-      <span class="label">{{ t('contact.rights') }}</span>
+      <span class="label">Commerce Consolidated</span>
     </footer>
   </main>
 </template>
@@ -108,12 +107,15 @@ const isExternal = (href) => href.startsWith('http')
   flex-direction: column;
 }
 
-/* Centred block between the edge hint (top) and footer (bottom). */
+/* Centred block between the edge hint (top) and footer (bottom). Everything is
+   horizontally centred (heading, intro, methods sit in the middle). */
 .contact__body {
   flex: 1;
   display: flex;
   flex-direction: column;
   justify-content: center;
+  align-items: center;
+  text-align: center;
 }
 
 .section-label {
@@ -121,10 +123,11 @@ const isExternal = (href) => href.startsWith('http')
 }
 
 .heading {
-  font-family: var(--font-serif);
+  font-family: var(--font-sans);
+  font-weight: 500;
   font-size: clamp(34px, 4.4vw, 62px);
-  line-height: 1;
-  max-width: 16ch;
+  line-height: 1.05;
+  max-width: 20ch;
   color: var(--grey-100);
   letter-spacing: -0.02em;
   margin: 0 0 22px;
@@ -143,10 +146,12 @@ const isExternal = (href) => href.startsWith('http')
   margin: 0 0 40px;
 }
 
-/* Contact methods: logo tile + handle underneath, the whole thing clickable. */
+/* Contact methods: logo tile + handle underneath, the whole thing clickable.
+   Centred to line up under the centred heading. */
 .methods {
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
   gap: clamp(24px, 4vw, 56px);
 }
 
@@ -199,7 +204,7 @@ const isExternal = (href) => href.startsWith('http')
 
 .footer {
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
   padding-top: 28px;
   border-top: 1px solid var(--hairline);
@@ -227,18 +232,12 @@ const isExternal = (href) => href.startsWith('http')
 
   .methods {
     gap: 28px 36px;
-    justify-content: flex-start;
+    justify-content: center;
   }
 
   .method__icon {
     width: 56px;
     height: 56px;
-  }
-
-  .footer {
-    flex-direction: column;
-    gap: 10px;
-    align-items: flex-start;
   }
 }
 </style>

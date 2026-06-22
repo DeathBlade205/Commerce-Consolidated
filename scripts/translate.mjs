@@ -30,6 +30,10 @@ const OVERRIDE_ZH = {
   'process.steps.0.word': '协作',
   'process.steps.1.word': '用心',
   'process.steps.2.word': '整合',
+  // Lock step titles (DeepL drifts "The Brief" between 项目简介/案情简介).
+  'process.steps.0.title': '项目简介',
+  'process.steps.1.title': '优化',
+  'process.steps.2.title': '构建与发布',
   'contact.headingPost': '。',
 }
 

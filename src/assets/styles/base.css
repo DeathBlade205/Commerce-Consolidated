@@ -6,9 +6,13 @@
   --grey-700: #2a2a2a;
   --hairline: rgba(255, 255, 255, 0.08);
 
-  --font-serif: 'Instrument Serif', Georgia, serif;
-  --font-sans: 'Geist', system-ui, sans-serif;
-  --font-mono: 'Geist Mono', ui-monospace, 'JetBrains Mono', Menlo, monospace;
+  /* 'Noto Sans SC' is the CJK fallback in every stack: Latin glyphs use the
+     primary (Geist/Instrument Serif), and Chinese characters — absent from
+     those — resolve to Noto Sans SC, so Chinese renders uniformly across
+     devices instead of each OS's own fallback font. */
+  --font-serif: 'Instrument Serif', 'Noto Sans SC', Georgia, serif;
+  --font-sans: 'Geist', 'Noto Sans SC', system-ui, sans-serif;
+  --font-mono: 'Geist Mono', 'Noto Sans SC', ui-monospace, 'JetBrains Mono', Menlo, monospace;
 }
 
 *, *::before, *::after {

@@ -156,7 +156,8 @@ onBeforeUnmount(() => {
 }
 
 .process-heading {
-  font-family: var(--font-serif);
+  font-family: var(--font-sans);
+  font-weight: 500;
   font-size: clamp(40px, 5vw, 72px);
   line-height: 1.05;
   letter-spacing: -0.015em;
@@ -288,7 +289,8 @@ onBeforeUnmount(() => {
 
 .step-card__title {
   margin: 0;
-  font-family: var(--font-serif);
+  font-family: var(--font-sans);
+  font-weight: 500;
   font-size: clamp(28px, 3vw, 44px);
   line-height: 1.05;
   letter-spacing: -0.015em;
