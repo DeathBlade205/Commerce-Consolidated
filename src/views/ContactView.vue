@@ -82,10 +82,6 @@ const isExternal = (href) => href.startsWith('http')
         </a>
       </nav>
     </div>
-
-    <footer class="footer">
-      <span class="label">Commerce Consolidated</span>
-    </footer>
   </main>
 </template>
 
@@ -188,8 +184,9 @@ const isExternal = (href) => href.startsWith('http')
   color: var(--grey-500);
   transition: color 0.25s ease;
   text-align: center;
-  max-width: 22ch;
-  word-break: break-word;
+  /* Keep each handle on one line (the email used to wrap to two). The methods
+     row flex-wraps as a whole on narrow screens, so tiles reflow instead. */
+  white-space: nowrap;
 }
 
 .method:hover .method__icon {
@@ -200,14 +197,6 @@ const isExternal = (href) => href.startsWith('http')
 
 .method:hover .method__handle {
   color: var(--grey-300);
-}
-
-.footer {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding-top: 28px;
-  border-top: 1px solid var(--hairline);
 }
 
 @media (max-width: 880px) {

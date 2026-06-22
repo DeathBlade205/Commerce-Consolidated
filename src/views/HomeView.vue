@@ -27,6 +27,7 @@ const isTouch = !hasFinePointer()
 // Past projects — clicking the logo opens one at random in a new tab.
 // Add more URLs here as projects ship.
 const pastSites = [
+  'https://opulent-pi.vercel.app/',
   'https://switch-app1.vercel.app/',
 ]
 function openPastSite() {

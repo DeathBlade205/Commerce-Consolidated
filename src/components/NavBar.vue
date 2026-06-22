@@ -12,8 +12,12 @@ const { locale, setLocale } = useI18n()
 
 <template>
   <nav class="nav">
-    <RouterLink to="/" class="logo" aria-label="Commerce Consolidated — home">
-      <LogoMark :size="42" compact />
+    <!-- Brand cluster: logo + wordmark, top-left on every page (the wordmark
+         used to live only in the Contact footer — relocated here so it's
+         consistent across Home / Process / Contact). -->
+    <RouterLink to="/" class="brand" aria-label="Commerce Consolidated — home">
+      <span class="logo"><LogoMark :size="42" compact /></span>
+      <span class="brand__name label">Commerce Consolidated</span>
     </RouterLink>
 
     <div class="lang-switch" role="radiogroup" aria-label="Language">
@@ -51,15 +55,28 @@ const { locale, setLocale } = useI18n()
   mix-blend-mode: difference;
 }
 
-.logo {
+.brand {
   display: inline-flex;
   align-items: center;
+  gap: 14px;
+  text-decoration: none;
   color: var(--grey-100);
   transition: opacity 0.25s ease;
 }
 
-.logo:hover {
+.brand:hover {
   opacity: 0.78;
+}
+
+.logo {
+  display: inline-flex;
+  align-items: center;
+  color: var(--grey-100);
+}
+
+.brand__name {
+  color: var(--grey-300);
+  white-space: nowrap;
 }
 
 /* Segmented language switch. Active segment flex-grows and fills with the
@@ -120,6 +137,11 @@ const { locale, setLocale } = useI18n()
 @media (max-width: 880px) {
   .nav {
     padding: 22px 22px;
+  }
+  /* Tight phones: drop the wordmark so the logo + language switch breathe.
+     The logo alone still carries the brand up top. */
+  .brand__name {
+    display: none;
   }
   /* Taller on touch — 24px was below a comfortable tap target. */
   .lang-switch {
