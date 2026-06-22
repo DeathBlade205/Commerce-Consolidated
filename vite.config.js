@@ -18,4 +18,12 @@ function spaFallback() {
 
 export default defineConfig({
   plugins: [vue(), spaFallback()],
+  // Pin the dev server to 5174 so it's predictable (Vite's default 5173 is
+  // often taken by another project). strictPort fails loudly instead of
+  // silently hopping to another port.
+  server: {
+    host: '127.0.0.1',
+    port: 5174,
+    strictPort: true,
+  },
 })
