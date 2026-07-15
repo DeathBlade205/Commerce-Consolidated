@@ -17,18 +17,33 @@
 //
 // Decay: after 240ms of no wheel input the accumulator drains back to 0 so
 // an accidental partial-charge doesn't sit there waiting to fire.
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, shallowRef, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 const WHEEL_THRESHOLD = 450
 const LOCK_MS = 900
 const TOUCH_THRESHOLD = 100
-// Gentler than before: charge only starts draining after a longer idle and
-// bleeds off slowly, so a deliberate, notch-by-notch scroll still reaches the
-// threshold instead of decaying between clicks (the old 200ms/0.08 made
-// slow scroll-up feel dead).
-const DECAY_IDLE_MS = 320
-const DECAY_RATE = 0.06
+// Decay must be slower than the gap between TRACKPAD swipe gestures, not just
+// between mouse-wheel notches. A cautious two-finger swipe moves ~150-250px and
+// the finger lifts for ~400-600ms between swipes; with the old 320ms/0.06 the
+// charge fully drained in that gap, so repeated small swipes NEVER reached the
+// 450px threshold ("can't keep scrolling to get to the next page" on laptops).
+// 650ms idle spans a normal swipe cadence; an abandoned partial charge still
+// drains to zero in about a second once the user actually stops.
+const DECAY_IDLE_MS = 650
+const DECAY_RATE = 0.035
+// Post-swap inertia guard. A hard trackpad flick keeps emitting wheel events
+// for 2s+ — well past LOCK_MS — and the leftover tail re-charged a SECOND
+// swap (one flick on Contact blew straight through Home onto Process). Time
+// caps don't work: a long tail still holds >450px of charge 1.6s in. What
+// reliably separates the old gesture from a new one is the DELTA ENVELOPE —
+// momentum only ever decays, while fresh human input shows up as a pause in
+// the stream, a direction reversal, or a sharply RISING |delta| (a re-flick).
+// So after a swap we swallow same-direction events whose |delta| keeps
+// shrinking and whose gaps stay tight, and release on any of those three
+// signals (plus a generous hard cap as an escape hatch for free-spin wheels).
+const FRESH_GAP_MS = 140
+const GUARD_MAX_MS = 2500
 
 export const ORDERED_PATHS = [
   { path: '/process', x: -1, label: 'Process' },
@@ -52,7 +67,12 @@ function reducedMotion() {
 
 // Registered step host (at most one — only the current page can host steps).
 // Shape: { count: number, getCurrentStep: () => number, setStep: (n) => void }
-const stepHost = ref(null)
+// MUST be a shallowRef: a plain ref() deep-wraps the host object in a reactive
+// proxy, so unregister's `stepHost.value === host` identity check compared
+// proxy vs raw and NEVER passed — the dead host survived its page and silently
+// ate scroll-up everywhere (invisibly stepping its unmounted deck back to 0)
+// until the user re-visited Process. shallowRef stores the object as-is.
+const stepHost = shallowRef(null)
 
 export function useScrollState() {
   return { scrollCharge, scrollLocked }
@@ -75,6 +95,22 @@ function neighborPath(currentX, direction) {
 // under DPR scaling), so strict equality made the scroll-up edge unreachable.
 const EDGE_SLACK = 3
 
+// Home / Process / Contact are designed NOT to scroll (overflow hidden, fixed
+// viewport height). Sub-pixel rounding (DPR scaling), a transient scrollbar, or
+// minor content shifts can still leave the document a few px scrollable — and
+// then sitting at the top satisfies atTop but NOT atBottom, so the page-swap at
+// the end of the Process deck (scroll down -> Home) and Contact's scroll-up-to-
+// Home both silently failed (neither edge matched). If the document isn't
+// MEANINGFULLY scrollable, treat the page as sitting at BOTH edges so the swap
+// always fires; a genuinely long page (mobile Contact) still needs the real edge.
+const NONSCROLL_SLACK = 24
+
+function maxScrollY() {
+  const el = document.scrollingElement || document.documentElement
+  const docHeight = Math.max(el.scrollHeight, document.body.scrollHeight)
+  return Math.max(0, docHeight - window.innerHeight)
+}
+
 function currentScrollTop() {
   return (
     window.scrollY ||
@@ -84,12 +120,11 @@ function currentScrollTop() {
   )
 }
 function atTop() {
-  return currentScrollTop() <= EDGE_SLACK
+  return maxScrollY() <= NONSCROLL_SLACK || currentScrollTop() <= EDGE_SLACK
 }
 function atBottom() {
-  const el = document.scrollingElement || document.documentElement
-  const docHeight = Math.max(el.scrollHeight, document.body.scrollHeight)
-  return currentScrollTop() + window.innerHeight >= docHeight - EDGE_SLACK
+  const max = maxScrollY()
+  return max <= NONSCROLL_SLACK || currentScrollTop() >= max - EDGE_SLACK
 }
 
 // Wheel deltas arrive in different units per browser: Chromium reports
@@ -121,6 +156,16 @@ export function useScrollNav() {
   let decayRaf = 0
   let touchStartY = 0
   let touchStartX = 0
+  // True from a swap until the wheel stream breaks (see FRESH_GAP_MS).
+  let tailGuard = false
+  let guardDeadline = 0
+  let prevAbsDy = 0
+
+  function armTailGuard() {
+    tailGuard = true
+    prevAbsDy = Infinity // first tail event after the swap is always swallowed
+    guardDeadline = performance.now() + LOCK_MS + GUARD_MAX_MS
+  }
 
   // Single mutator so charge state always agrees with accum + intent.
   function setAccum(value, intent = lastIntent) {
@@ -139,6 +184,7 @@ export function useScrollNav() {
     scrollLocked.value = true
     setAccum(0, 'page')
     cancelAnimationFrame(decayRaf)
+    armTailGuard()
     router.push(target)
     setTimeout(() => { scrollLocked.value = false }, LOCK_MS)
   }
@@ -151,6 +197,7 @@ export function useScrollNav() {
     scrollLocked.value = true
     setAccum(0, 'step')
     cancelAnimationFrame(decayRaf)
+    armTailGuard()
     host.setStep(next)
     setTimeout(() => { scrollLocked.value = false }, LOCK_MS)
   }
@@ -178,8 +225,13 @@ export function useScrollNav() {
 
     // While a swap animation plays, swallow everything — including the
     // inertial tail of the gesture that triggered it — so it can't queue a
-    // second swap or leak into browser history navigation.
+    // second swap or leak into browser history navigation. lastWheelTs still
+    // updates so the tail guard below can tell "same stream" from "new scroll".
     if (scrollLocked.value) {
+      lastWheelTs = performance.now()
+      // Track the tail's decaying envelope through the lock so the guard
+      // below has a fresh baseline the moment the lock lifts.
+      if (tailGuard) prevAbsDy = Math.abs(normalizedDeltaY(e))
       e.preventDefault()
       return
     }
@@ -195,6 +247,25 @@ export function useScrollNav() {
     if (Math.abs(dy) < 1) return
 
     const dir = dy > 0 ? 1 : -1
+
+    // Post-swap tail guard: the flick that fired the swap keeps emitting for
+    // longer than the lock. Same direction + tight gaps + decaying |delta| =
+    // still the old gesture; eat it. A pause, a reversal, or a rising |delta|
+    // (the user re-flicked mid-tail) releases it immediately.
+    if (tailGuard) {
+      const now = performance.now()
+      const absDy = Math.abs(dy)
+      const sameStream = now - lastWheelTs < FRESH_GAP_MS
+      const decaying = absDy <= prevAbsDy * 1.5 + 8
+      if (now < guardDeadline && sameStream && decaying && dir === lastDir) {
+        prevAbsDy = absDy
+        lastWheelTs = now
+        e.preventDefault()
+        return
+      }
+      tailGuard = false
+    }
+
     const intent = intentFor(dir)
 
     // For PAGE intent we only act at the document scroll edge, so a long page
@@ -247,18 +318,30 @@ export function useScrollNav() {
     const dy = touchStartY - t.clientY
     const dx = touchStartX - t.clientX
 
-    if (Math.abs(dx) > Math.abs(dy)) return
-    if (Math.abs(dy) < TOUCH_THRESHOLD) return
+    // Dominant axis decides the gesture. Both map to the same page-line
+    // direction: swipe UP or swipe LEFT advances (+1), matching the slide
+    // animation (the new page/step slides in from the right, as if the user
+    // dragged the strip). Horizontal is the natural phone gesture for a
+    // horizontal page-line; vertical is kept for continuity.
+    const horizontal = Math.abs(dx) > Math.abs(dy)
+    const travel = horizontal ? dx : dy
+    if (Math.abs(travel) < TOUCH_THRESHOLD) return
 
-    const wantsRight = dy > 0
-    const dir = wantsRight ? 1 : -1
+    const dir = travel > 0 ? 1 : -1
     const intent = intentFor(dir)
 
     if (intent === 'step') {
       triggerStep(dir)
       return
     }
-    if ((wantsRight && atBottom()) || (!wantsRight && atTop())) {
+    // Horizontal swipes never fight document scroll (there is no x overflow),
+    // so they may fire a page swap from anywhere — even mid-scroll on mobile
+    // Contact. Vertical swipes still require the scroll edge.
+    if (horizontal) {
+      triggerPage(dir)
+      return
+    }
+    if ((dir > 0 && atBottom()) || (dir < 0 && atTop())) {
       triggerPage(dir)
     }
   }

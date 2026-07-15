@@ -14,11 +14,14 @@ export const messages = {
     },
     "common": {
       "scrollUp": "Scroll up",
-      "scrollDown": "Scroll down"
+      "scrollDown": "Scroll down",
+      "swipeLeft": "Swipe left",
+      "swipeRight": "Swipe right"
     },
     "home": {
       "subtitle": "Digital practice. Web, brand, marketing.",
-      "hint": "use cursor to look around"
+      "hint": "use cursor to look around",
+      "logoHint": "click to view past work"
     },
     "process": {
       "headingPre": "A studio for",
@@ -68,11 +71,14 @@ export const messages = {
     },
     "common": {
       "scrollUp": "向上滚动",
-      "scrollDown": "向下滚动"
+      "scrollDown": "向下滚动",
+      "swipeLeft": "向左滑动",
+      "swipeRight": "向右滑动"
     },
     "home": {
       "subtitle": "数字营销。网站、品牌、市场营销。",
-      "hint": "使用光标四处查看"
+      "hint": "使用光标四处查看",
+      "logoHint": "点击查看过往作品"
     },
     "process": {
       "stepWord": "步骤",

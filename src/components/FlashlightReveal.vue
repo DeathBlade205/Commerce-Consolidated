@@ -1,6 +1,6 @@
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from 'vue'
-import { hasFinePointer } from '../composables/useFinePointer.js'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { useFinePointer } from '../composables/useFinePointer.js'
 
 defineProps({
   hidden: { type: Boolean, default: false },
@@ -9,9 +9,11 @@ defineProps({
 
 const brightRef = ref(null)
 
-// Synchronous detection so initial render avoids a flash of dim content on
-// touch devices. No hover-capable pointer → no flashlight; show everything.
-const isTouch = ref(!hasFinePointer())
+// Reactive: touch-primary convertibles (Surface Pro) start in the everything-
+// visible fallback and switch to flashlight mode the moment a real mouse
+// moves (useFinePointer upgrades on the first mouse pointermove).
+const fine = useFinePointer()
+const isTouch = computed(() => !fine.value)
 
 function onMouseMove(e) {
   const el = brightRef.value
@@ -21,13 +23,10 @@ function onMouseMove(e) {
   el.style.setProperty('--y', `${e.clientY - rect.top}px`)
 }
 
-onMounted(() => {
-  if (!isTouch.value) window.addEventListener('mousemove', onMouseMove)
-})
-
-onBeforeUnmount(() => {
-  if (!isTouch.value) window.removeEventListener('mousemove', onMouseMove)
-})
+// Always listen — cheap on touch (no mousemove stream), and required so the
+// mask has fresh coordinates the instant a session upgrades to fine-pointer.
+onMounted(() => window.addEventListener('mousemove', onMouseMove))
+onBeforeUnmount(() => window.removeEventListener('mousemove', onMouseMove))
 </script>
 
 <template>

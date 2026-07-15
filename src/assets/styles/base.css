@@ -40,19 +40,26 @@ html, body {
 }
 
 /* Native pointer hidden — the dot + ring in CustomCursor.vue is the pointer.
-   Gated to hover-capable fine-pointer devices so touchscreen laptops and
-   tablets with no mouse attached aren't left with no cursor at all. The same
-   media query drives CustomCursor's render decision (useFinePointer.js). */
-@media (hover: hover) and (pointer: fine) {
-  html, body {
-    cursor: none;
-  }
+   Gated on the `cc-fine-pointer` class that useFinePointer.js stamps on <html>
+   (seeded from the hover/pointer media query, upgraded when a real mouse is
+   detected on touch-primary convertibles like Surface Pro). CustomCursor
+   renders from the same state, so CSS and JS can never disagree — a device
+   is never left with no cursor at all. */
+html.cc-fine-pointer,
+html.cc-fine-pointer body {
+  cursor: none;
+}
 
-  /* Every interactive element gets `cursor: none` too — otherwise the system
-     pointer flickers back on hover. */
-  a, button, [role="button"], input, textarea, select, label {
-    cursor: none;
-  }
+/* Every interactive element gets `cursor: none` too — otherwise the system
+   pointer flickers back on hover. */
+html.cc-fine-pointer a,
+html.cc-fine-pointer button,
+html.cc-fine-pointer [role="button"],
+html.cc-fine-pointer input,
+html.cc-fine-pointer textarea,
+html.cc-fine-pointer select,
+html.cc-fine-pointer label {
+  cursor: none;
 }
 
 a {

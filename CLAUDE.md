@@ -121,9 +121,10 @@ src/
 **Constants** (tune here, not at call sites):
 - `WHEEL_THRESHOLD = 450` — wheel-delta needed to commit a swap
 - `LOCK_MS = 900` — lockout window after a swap
-- `TOUCH_THRESHOLD = 100` — finger-travel px for swipe swap
-- `DECAY_IDLE_MS = 320` — idle time before charge starts draining
-- `DECAY_RATE = 0.06` — fraction drained per RAF frame after idle (gentle, so a deliberate notch-by-notch scroll-up still reaches the threshold instead of decaying between clicks)
+- `TOUCH_THRESHOLD = 100` — finger-travel px for swipe swap (either axis). Touch nav takes the DOMINANT axis of the swipe: horizontal swipes are the primary phone gesture (carousel semantics — swipe LEFT advances along the page-line / step deck, swipe RIGHT retreats, matching the slide animation), vertical swipes still work for continuity. Horizontal page-intent swipes skip the atTop/atBottom edge requirement (no x overflow to fight); vertical ones still require the scroll edge.
+- `DECAY_IDLE_MS = 650` — idle time before charge starts draining. Must exceed the finger-lift gap between TRACKPAD swipe gestures (~400-600ms): at the old 320ms, repeated small two-finger swipes (~180px each) fully drained between swipes and could NEVER reach the threshold ("can't keep scrolling to the next page" on laptops).
+- `DECAY_RATE = 0.035` — fraction drained per RAF frame after idle (an abandoned partial charge still drains in about a second)
+- `FRESH_GAP_MS = 140` / `GUARD_MAX_MS = 2500` — post-swap inertia tail guard. A hard trackpad flick emits wheel events for 2s+ (past LOCK_MS) and the leftover tail used to re-charge a SECOND swap (one flick on Contact blew through Home onto Process). After a swap, same-direction events with tight gaps and a DECAYING |delta| envelope are swallowed; a pause > FRESH_GAP_MS, a direction reversal, or a sharply rising |delta| (deliberate re-flick) releases immediately. Time caps alone don't work — long tails still hold >450px of charge 1.6s in.
 
 **State** (module-level reactive refs, NOT instance-scoped):
 - `scrollCharge: Ref<number>` — signed -1..1 ratio of accumulated charge / threshold. **Only updated when intent is `page`** (so PageProgressBar doesn't fill during step charging).
@@ -177,8 +178,8 @@ Single viewport hero. No document scroll (`overflow: hidden`). Layout:
 - `.hero-row` is a single flex row: `.hero-stack` (title + subtitle + hint), `.hero-divider` (1px × 240px), `.hero-logo`. `align-items: center` puts everything on one Y axis — no `position: absolute` games.
 - Title is two flex-column lines, both left-aligned (no staircase indent — user explicitly aligned them).
 - Subtitle and hint both crushed to `rgba(255,255,255,0.08)` dim — only readable when the flashlight is over them.
-- Logo is `LogoMark size=220` wrapped in `<FlashlightReveal hidden>` — fully invisible until the cursor passes. Wrapped in `<a class="logo-link">` that opens a past project in a new tab (`pastSites` array — PLACEHOLDER URLs). One-shot `flourish` on first load (cleared on animationend), and replays on **hover** via `.logo-link:hover .logo`. **No idle/breath animation** (removed — user found the drift distracting).
-- Bottom corner callouts (`← PROCESS` / `CONTACT →`) at `clamp(22px, 2.4vw, 34px)` with small `SCROLL UP` / `SCROLL DOWN` cues underneath. These are real RouterLinks too. **Mobile:** the arrows flip to vertical (`↑ PROCESS` / `CONTACT ↓`) to match the vertical swipe gesture — each arrow renders both glyphs (`.arrow-h` / `.arrow-v`) toggled by the 880px media query.
+- Logo is `LogoMark size=220` wrapped in `<FlashlightReveal hidden>` — fully invisible until the cursor passes. A subtle `.logo-sub` cue ("click to view past work", i18n `home.logoHint`) sits under the mark with the same crushed-dim flashlight treatment as the hint. Wrapped in `<a class="logo-link">` that opens a past project in a new tab (`pastSites` array — PLACEHOLDER URLs). One-shot `flourish` on first load (cleared on animationend), and replays on **hover** via `.logo-link:hover .logo`. **No idle/breath animation** (removed — user found the drift distracting).
+- Bottom corner callouts (`← PROCESS` / `CONTACT →`) at `clamp(22px, 2.4vw, 34px)` with small `SCROLL UP` / `SCROLL DOWN` cues underneath. These are real RouterLinks too. **Mobile:** arrows stay horizontal (`← PROCESS` / `CONTACT →`) — phones navigate with horizontal swipes now — and the small cue text swaps per device (`.cue-scroll` "scroll up/down" on desktop, `.cue-swipe` "swipe right/left" on mobile, i18n `common.swipeLeft/swipeRight`), toggled by the 880px media query.
 
 User instructed: **removed** the eyebrow strap (`DIGITAL PRACTICE · SYDNEY · EST 2026`), the long mission paragraph, and the bottom meta strip (`Currently taking briefs` / Sydney coords) — all "clutter."
 
@@ -217,7 +218,7 @@ Mobile (`<880px`) collapses the row to a vertical stack — slots become static,
 ## Components
 
 ### `CustomCursor.vue` — the cursor
-Native pointer hidden via `cursor: none` in `base.css` — applied to html, body, and all interactive elements, but **only inside `@media (hover: hover) and (pointer: fine)`**. The same condition (via `hasFinePointer()` in `useFinePointer.js`) decides whether CustomCursor renders, so CSS and JS can never disagree (a touchscreen laptop must not end up with no cursor at all).
+Native pointer hidden via `cursor: none` in `base.css` — applied to html, body, and all interactive elements, but **only under the `cc-fine-pointer` class that `useFinePointer.js` stamps on `<html>`**. That module owns the decision: it seeds from `(hover: hover) and (pointer: fine)`, then UPGRADES when a real mouse `pointermove` arrives (Windows convertibles like Surface Pro report touch-primary even with a trackpad attached — the media query alone disabled the cursor + flashlight there). CustomCursor renders from the same reactive ref, so CSS and JS can never disagree (a touchscreen laptop must not end up with no cursor at all). Never downgrades mid-session.
 
 Two layers:
 - **`.cursor-dot`** — 6px solid white circle, snapped to exact pointer position (no easing). Grows to 12px on hover over interactive elements. `z-index: 9999`.
@@ -329,7 +330,11 @@ Atmospheric chrome. Fixed-position, low-opacity. Don't touch unless you want the
 
 9. **On a fresh load, HomeView skips its cascade** — when `bootDone` is false at mount, content goes straight to final state so the BootReveal ripple genuinely uncovers it; the cascade only plays on page-swap entries. The flashlight intro sweep always waits for the reveal. Timing coupling lives in `BootReveal.vue`: `CHARGE_MS` must match the CSS draw/fill/flash delays.
 
-10. **Device gating goes through `hasFinePointer()`** (`useFinePointer.js`), which matches the `@media (hover: hover) and (pointer: fine)` block in base.css. Don't reintroduce `ontouchstart`/`maxTouchPoints` checks — they classify touchscreen laptops as touch-only, which hid the custom cursor while CSS still hid the native one (no cursor at all).
+10. **Device gating goes through `useFinePointer()`** (a reactive ref) and the `cc-fine-pointer` class it stamps on `<html>`, which gates `cursor: none` in base.css. The primary-pointer media query only SEEDS the value; a real mouse `pointermove` upgrades touch-primary convertibles (Surface Pro) at runtime. Don't reintroduce `ontouchstart`/`maxTouchPoints` checks, and don't gate CSS on the media query directly — Surface-class devices would lose the flashlight + cursor again. Components that need reactivity must use `useFinePointer()` (ref), not a one-shot `hasFinePointer()` snapshot.
+
+11. **`stepHost` must stay a `shallowRef`.** With a plain `ref()`, Vue deep-wraps the registered host object in a reactive proxy, so unregister's `stepHost.value === host` identity check compares proxy vs raw and never passes — the dead host outlived its page and silently ate scroll-up SITE-WIDE (invisibly stepping its unmounted deck back toward 0) until Process was visited again. This was the "can't keep scrolling back to Home" bug.
+
+12. **Fixed-viewport pages must actually fit the viewport.** `.process-page` is `min-height: 100svh`, so on short windows (<~860px) overflowing content makes the DOCUMENT scrollable and every wheel gesture scrolls that dead overflow instead of charging the swap (worst in EN — longer copy). The `@media (max-height: 860px)` compact block in ProcessView plus `NONSCROLL_SLACK` in useScrollNav guard this; keep them if adding content.
 
 ---
 

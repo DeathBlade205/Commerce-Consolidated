@@ -364,6 +364,36 @@ onBeforeUnmount(() => {
   }
 }
 
+/* Short desktop windows: heading + deck + full-size padding used to overflow
+   100svh by ~100px (worst in EN, whose heading wraps wider), leaving the
+   document scrollable — each wheel gesture then scrolled that dead overflow
+   instead of charging the swap to Home. Compact the chrome so the deck always
+   fits inside the viewport and atBottom() is true immediately. */
+@media (min-width: 881px) and (max-height: 860px) {
+  .process-page {
+    padding: 110px 48px 72px;
+    gap: 40px;
+  }
+
+  .process-heading {
+    font-size: clamp(32px, 4.2vw, 56px);
+  }
+
+  .step-stage {
+    height: clamp(230px, 40vh, 320px);
+  }
+
+  .step-card--body {
+    padding: 28px 36px;
+    gap: 18px;
+  }
+
+  .step-card--marker {
+    padding: 26px 28px;
+    gap: 14px;
+  }
+}
+
 @media (max-width: 880px) {
   .process-page {
     padding: 110px 22px 110px;

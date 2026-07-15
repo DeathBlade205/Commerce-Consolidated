@@ -1,6 +1,6 @@
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from 'vue'
-import { hasFinePointer } from '../composables/useFinePointer.js'
+import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
+import { useFinePointer } from '../composables/useFinePointer.js'
 
 // Two-layer cursor:
 //   • Dot snapped to the exact pointer position — this IS the cursor.
@@ -20,9 +20,10 @@ const dotY = ref(-200)
 const visible = ref(false)
 const hovering = ref(false)
 
-// Render only for hover-capable fine pointers — matches the media query that
-// hides the native cursor in base.css, so we never hide one without the other.
-const isTouch = !hasFinePointer()
+// Render only for hover-capable fine pointers — reactive, because a Surface-
+// class touchscreen laptop starts touch-primary and upgrades the moment a
+// real mouse/trackpad moves (useFinePointer stamps <html> for the CSS side).
+const fine = useFinePointer()
 
 let targetX = -200
 let targetY = -200
@@ -58,11 +59,18 @@ function tick() {
   rafId = requestAnimationFrame(tick)
 }
 
-onMounted(() => {
-  if (isTouch) return
+let started = false
+function start() {
+  if (started) return
+  started = true
   window.addEventListener('mousemove', onMove)
   document.documentElement.addEventListener('mouseleave', onLeave)
   rafId = requestAnimationFrame(tick)
+}
+
+onMounted(() => {
+  if (fine.value) start()
+  else watch(fine, (v) => { if (v) start() }, { once: true })
 })
 
 onBeforeUnmount(() => {
@@ -73,7 +81,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <template v-if="!isTouch">
+  <template v-if="fine">
     <!-- Outer trailing ring — eased lerp from the pointer. -->
     <div
       class="cursor-ring"

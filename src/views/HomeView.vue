@@ -203,6 +203,13 @@ onBeforeUnmount(() => {
             </FlashlightReveal>
           </span>
         </a>
+        <!-- Subtle cue under the mark: the logo is a link to past work. Same
+             crushed-dim + flashlight treatment as the hint, so it stays quiet. -->
+        <div class="logo-sub">
+          <FlashlightReveal :radius="160">
+            <span class="logo-sub__text">{{ t('home.logoHint') }}</span>
+          </FlashlightReveal>
+        </div>
       </div>
     </div>
 
@@ -215,27 +222,30 @@ onBeforeUnmount(() => {
       <RouterLink to="/process" class="hero-nav__link hero-nav__link--left">
         <FlashlightReveal :radius="220">
           <span class="hero-nav__inner">
-            <span class="hero-nav__arrow" aria-hidden="true">
-              <span class="arrow-h">←</span><span class="arrow-v">↑</span>
-            </span>
+            <span class="hero-nav__arrow" aria-hidden="true">←</span>
             <span class="hero-nav__label">{{ t('nav.process') }}</span>
           </span>
         </FlashlightReveal>
         <FlashlightReveal :radius="160">
-          <span class="hero-nav__cue">{{ t('common.scrollUp') }}</span>
+          <!-- Desktop cue = wheel gesture; mobile cue = the horizontal swipe.
+               (Swiping RIGHT drags the page-strip right, revealing Process on
+               the left — carousel semantics, same as the slide animation.) -->
+          <span class="hero-nav__cue">
+            <span class="cue-scroll">{{ t('common.scrollUp') }}</span><span class="cue-swipe">{{ t('common.swipeRight') }}</span>
+          </span>
         </FlashlightReveal>
       </RouterLink>
       <RouterLink to="/contact" class="hero-nav__link hero-nav__link--right">
         <FlashlightReveal :radius="220">
           <span class="hero-nav__inner">
             <span class="hero-nav__label">{{ t('nav.contact') }}</span>
-            <span class="hero-nav__arrow" aria-hidden="true">
-              <span class="arrow-h">→</span><span class="arrow-v">↓</span>
-            </span>
+            <span class="hero-nav__arrow" aria-hidden="true">→</span>
           </span>
         </FlashlightReveal>
         <FlashlightReveal :radius="160">
-          <span class="hero-nav__cue">{{ t('common.scrollDown') }}</span>
+          <span class="hero-nav__cue">
+            <span class="cue-scroll">{{ t('common.scrollDown') }}</span><span class="cue-swipe">{{ t('common.swipeLeft') }}</span>
+          </span>
         </FlashlightReveal>
       </RouterLink>
     </nav>
@@ -420,9 +430,10 @@ onBeforeUnmount(() => {
   font-weight: 500;
 }
 
-/* Desktop = horizontal page-line (← →). The vertical glyphs are mobile-only,
-   where navigation is a vertical swipe (↑ Process / ↓ Contact). */
-.arrow-v { display: none; }
+/* Arrows are horizontal everywhere — the page-line is horizontal and mobile
+   navigates it with horizontal swipes (carousel-style). The cue text under
+   each label swaps per device: "scroll" on desktop, "swipe" on mobile. */
+.cue-swipe { display: none; }
 
 .hero-nav__arrow {
   font-family: var(--font-mono);
@@ -454,12 +465,30 @@ onBeforeUnmount(() => {
   flex-shrink: 0;
 }
 
-/* Logo wrapper — flex flow handles vertical centering. */
+/* Logo wrapper — flex flow handles vertical centering. Column so the subtext
+   sits under the mark, both centred on the logo's axis. */
 .hero-logo {
   flex-shrink: 0;
   display: flex;
+  flex-direction: column;
   align-items: center;
+  gap: 16px;
   pointer-events: none; /* the link child re-enables pointer events */
+}
+
+/* Subtext under the logo: same barely-there treatment as the hint — only
+   readable when the flashlight passes over it. */
+.logo-sub__text {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.26em;
+  text-transform: lowercase;
+  white-space: nowrap;
+}
+
+.logo-sub :deep(.layer.dim) {
+  color: rgba(255, 255, 255, 0.08);
 }
 
 /* Clickable logo — opens a past project in a new tab. Re-enables pointer
@@ -546,9 +575,9 @@ onBeforeUnmount(() => {
     display: none;
   }
 
-  /* Swipe is vertical on mobile, so the arrows point up/down, not left/right. */
-  .arrow-h { display: none; }
-  .arrow-v { display: inline; }
+  /* Mobile navigates with horizontal swipes — cue text says so. */
+  .cue-scroll { display: none; }
+  .cue-swipe { display: inline; }
 
   .hero-nav {
     left: 22px;
