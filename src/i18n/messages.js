@@ -21,7 +21,7 @@ export const messages = {
     "home": {
       "subtitle": "Digital practice. Web, brand, marketing.",
       "hint": "use cursor to look around",
-      "logoHint": "click to view past work"
+      "logoHint": "click to view some examples!"
     },
     "process": {
       "headingPre": "A studio for",
@@ -78,7 +78,7 @@ export const messages = {
     "home": {
       "subtitle": "数字营销。网站、品牌、市场营销。",
       "hint": "使用光标四处查看",
-      "logoHint": "点击查看过往作品"
+      "logoHint": "点击查看一些案例！"
     },
     "process": {
       "stepWord": "步骤",
