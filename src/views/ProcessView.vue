@@ -368,10 +368,13 @@ onBeforeUnmount(() => {
    100svh by ~100px (worst in EN, whose heading wraps wider), leaving the
    document scrollable — each wheel gesture then scrolled that dead overflow
    instead of charging the swap to Home. Compact the chrome so the deck always
-   fits inside the viewport and atBottom() is true immediately. */
-@media (min-width: 881px) and (max-height: 860px) {
+   fits inside the viewport and atBottom() is true immediately.
+   960px threshold (was 860): between 860-950px the full-size layout still
+   pushed the step dots down into the fixed PageProgressBar (bottom ~70px
+   zone) — common laptop heights. The bottom padding is the bar's clearance. */
+@media (min-width: 881px) and (max-height: 960px) {
   .process-page {
-    padding: 110px 48px 72px;
+    padding: 110px 48px 88px;
     gap: 40px;
   }
 

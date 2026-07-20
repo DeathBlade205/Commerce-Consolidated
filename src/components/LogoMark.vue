@@ -1,7 +1,6 @@
 <script setup>
-// The brand mark — the supplied artwork (assets/logo.svg) used as-is (not
-// cropped), only resized. Colours are inverted via CSS (the source is a white
-// mark on black; inverted it reads as a dark mark on white).
+// The brand mark — the supplied artwork (assets/logo.svg, cc_logo_bbg) used
+// as-is: black rounded-D on its white tile. No colour inversion (client call).
 import logoUrl from '../assets/logo.svg'
 
 defineProps({
@@ -26,7 +25,5 @@ defineProps({
   display: block;
   user-select: none;
   object-fit: contain;
-  /* Invert the supplied artwork's colours (white-on-black -> black-on-white). */
-  filter: invert(1);
 }
 </style>

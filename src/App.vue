@@ -72,10 +72,16 @@ useScrollNav()
 }
 
 /* While transitioning, the LEAVING page is taken out of flow so the entering
-   page can occupy the same space. Both glide in unison. */
+   page can occupy the same space. Both glide in unison.
+   !important is load-bearing: page roots set position in their SCOPED styles
+   (.home[data-v-x] { position: relative }) which outspecifies this global
+   class — Home then stayed in flow while leaving, shoving the entering page
+   a full viewport BELOW the stage. It slid across invisibly and popped in
+   when Home unmounted ("blank for half a second" on Home -> Contact/Process,
+   while X -> Home looked fine because Contact/Process roots are static). */
 .slide-left-leave-active,
 .slide-right-leave-active {
-  position: absolute;
+  position: absolute !important;
   top: 0;
   left: 0;
   right: 0;
@@ -94,23 +100,28 @@ useScrollNav()
   will-change: transform, opacity;
 }
 
-/* slide-left: new page comes IN from the right; old page goes OUT to the left. */
+/* slide-left: new page comes IN from the right; old page goes OUT to the left.
+   100vw, NOT 100% — percentages resolve against the PAGE ROOT, and Contact /
+   Process are max-width:1200px centered boxes, so 100% undershot by the
+   centering margins on wide viewports: the incoming page popped in with a
+   ~120px sliver already visible ("blinks in") while Home (full-width root)
+   slid perfectly. vw guarantees fully off-screen regardless of root width. */
 .slide-left-enter-from {
-  transform: translate3d(100%, 0, 0);
+  transform: translate3d(100vw, 0, 0);
   opacity: 0.4;
 }
 .slide-left-leave-to {
-  transform: translate3d(-100%, 0, 0);
+  transform: translate3d(-100vw, 0, 0);
   opacity: 0.4;
 }
 
 /* slide-right: new page comes IN from the left; old page goes OUT to the right. */
 .slide-right-enter-from {
-  transform: translate3d(-100%, 0, 0);
+  transform: translate3d(-100vw, 0, 0);
   opacity: 0.4;
 }
 .slide-right-leave-to {
-  transform: translate3d(100%, 0, 0);
+  transform: translate3d(100vw, 0, 0);
   opacity: 0.4;
 }
 

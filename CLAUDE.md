@@ -36,7 +36,7 @@ Three pages live on a horizontal number line via `route.meta.x`:
 [Process] ← [Home] → [Contact]
 ```
 
-- `meta.x` drives the slide direction in `App.vue` (`slide-left` when going right along the line, `slide-right` when going left)
+- `meta.x` drives the slide direction in `App.vue` (`slide-left` when going right along the line, `slide-right` when going left). The slide offsets are `100vw`, NOT `100%` — percentages resolve against the page root, and Contact/Process are max-width:1200px centred boxes, so `100%` undershot on wide viewports (incoming page popped in with a visible sliver, read as a "blink").
 - `useScrollNav` reads the current `meta.x` and the direction of scroll/key to pick the neighbour page
 - The same line governs ArrowLeft/ArrowRight keyboard nav and the bottom `PageProgressBar`
 - Three vertical "pages" + ProcessView's internal 3-step deck = effectively a 5-step linear journey:
@@ -258,7 +258,7 @@ Props:
 **Naming gotcha — `.reveal` is a global directive class.** The reveal directive uses `.reveal` + `.reveal.is-visible` (in `main.css`) which sets `opacity: 0` until visible. `FlashlightReveal`'s wrapper class is intentionally `.fl-root` (was `.reveal` originally, which silently hid all flashlight content). **Never** name any new class `.reveal` in component CSS.
 
 ### `LogoMark.vue`
-Renders `<img>` of `src/assets/logo.png`. The supplied artwork (`Downloads/Logo.svg`) was a white circle on an OPAQUE black square (RGBA but all-opaque), positioned off-centre — it showed as a black box on the page. Processed with ImageMagick (luminance→alpha, trim, re-centre on a padded transparent square) into `logo.png`, so it drops onto the dark theme cleanly with no blend hacks. `compact` prop kept for API compatibility (NavBar passes it) but the same artwork is used everywhere.
+Renders `<img>` of `src/assets/logo.svg` — the client's `cc_logo_bbg.svg` used VERBATIM: black rounded-D on its white square tile. NO colour inversion (client explicitly reversed an earlier invert(1); don't reintroduce it). The favicon (inline data URI in index.html) mirrors the same black-on-white-tile mark. `compact` prop kept for API compatibility (NavBar passes it) but the same artwork is used everywhere.
 
 ### `GrainOverlay.vue` / `CornerMarks.vue`
 Atmospheric chrome. Fixed-position, low-opacity. Don't touch unless you want the page to feel different.
@@ -342,7 +342,7 @@ Atmospheric chrome. Fixed-position, low-opacity. Don't touch unless you want the
 
 - **i18n**: DONE — custom `useI18n` + `i18n/messages.js`. English is the source of truth; Chinese was generated via the DeepL API (target ZH). To re-translate after editing English, re-run the DeepL pass (the generator lives outside the repo). The three Process emphasis words (用心/整合/协作) and the heading scaffolding were hand-set because single adjectives translate poorly out of context.
 - **Contact handles**: the email/WeChat/X/Instagram/LinkedIn handles in `ContactView.vue` are PLACEHOLDERS — need the real ones.
-- **Logo**: now `assets/logo.png` (processed from the user's supplied artwork). The artwork is essentially a plain white circle — if a more detailed / centred / transparent export is provided, drop it in and remove the ImageMagick step.
+- **Logo**: DONE — `assets/logo.svg` is the client's rounded-D mark (`cc_logo_bbg.svg`, cleaned). See LogoMark section.
 - **Home logo links**: `pastSites` in HomeView is PLACEHOLDER URLs — needs the real past-project links (clicking the logo opens one at random in a new tab).
 - **Contact content**: emails, address, social hrefs are placeholder. Need real values.
 - **Step content**: copy in `processSteps` is decent draft but not finalised.
